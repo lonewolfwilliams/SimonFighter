@@ -69,7 +69,7 @@ package sprites
 			this.frame = 1 + getFrameAdjustment(state);
 			this.draw();
 		}
-		private function getFrameAdjustment(fromState:String)
+		private function getFrameAdjustment(fromState:String):int
 		{
 			var modifier:int = 0;
 			if (fromState == CORRECT)

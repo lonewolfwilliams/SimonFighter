@@ -1,6 +1,7 @@
 package states 
 {
 	import org.flixel.FlxState;
+	import sprites.IPlayer;
 	
 	/**
 	 * ...
@@ -10,7 +11,7 @@ package states
 	public class WinnerState extends FlxState
 	{
 		
-		public function WinnerState() 
+		public function WinnerState(whoWon:IPlayer) 
 		{
 			super();
 			

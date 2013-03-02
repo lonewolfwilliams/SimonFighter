@@ -18,8 +18,8 @@ package
 	public class Message extends FlxText implements IAnimationEventDispatcher
 	{
 		
-		static var id:int = 0; 
-		var m_id = 0;
+		private static var id:int = 0; 
+		private var m_id:int = 0;
 		
 		private var eventDispatcher:EventDispatcher;
 		private var secondsOnScreen:Number

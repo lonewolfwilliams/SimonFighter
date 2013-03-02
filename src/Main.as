@@ -4,7 +4,7 @@ package
 	import flash.events.Event;
 	import org.flixel.FlxG;
 	import org.flixel.FlxGame;
-	import states.GameState;
+	import states.*;
 	/**
 	 * ...
 	 * @author LoneWolfWilliams
@@ -14,7 +14,7 @@ package
 		
 		public function Main():void 
 		{
-			super(320,240,states.GameState,2);
+			super(320,240,TitleState,2);
 			FlxG.bgColor = 0xff333333;
 		}
 		
