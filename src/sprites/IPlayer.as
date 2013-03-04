@@ -18,8 +18,7 @@ package sprites
 		//injuries
 		function highInjury():void;
 		function lowInjury():void;
-		//effects
-		function show():void;
-		function hide():void;
+		//death
+		function youGotKnockedTheFuckOut():void;
 	}
 }

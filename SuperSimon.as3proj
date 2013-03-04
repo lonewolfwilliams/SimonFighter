@@ -95,6 +95,10 @@
     <hidden path="src\sprites\logo.png" />
     <hidden path="src\sprites\worldwarriorfont.pdn" />
     <hidden path="src\sprites\worldwarriorfont.png" />
+    <hidden path="src\sprites\Coin [SFX].mp3" />
+    <hidden path="src\sprites\ko [SFX].mp3" />
+    <hidden path="src\sprites\kenPortrait.gif" />
+    <hidden path="src\sprites\kenPortrait2.gif" />
   </hiddenPaths>
   <!-- Executed before build -->
   <preBuildCommand />

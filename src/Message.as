@@ -6,6 +6,7 @@ package
 	import flash.events.TimerEvent;
 	import flash.utils.Timer;
 	import org.flixel.FlxG;
+	import org.flixel.FlxPoint;
 	import org.flixel.FlxText;
 	import sprites.AnimationEvent;
 	import sprites.IAnimationEventDispatcher;
@@ -34,10 +35,11 @@ package
 			secondsOnScreen = duration;
 			displayTimer = new Timer(1000 * secondsOnScreen, 1);
 			displayTimer.addEventListener(TimerEvent.TIMER_COMPLETE, this.onTimeOut);
-			super(0, FlxG.height / 5, FlxG.width, text);
+			super(0, FlxG.camera.height / 5, FlxG.camera.width, text);
 			this.alignment = "center";
 			this.color = colour;
 			this.shadow = 2;
+			this.scrollFactor = new FlxPoint(0, 0);
 		}
 		override public function destroy():void
 		{

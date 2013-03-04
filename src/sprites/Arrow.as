@@ -44,6 +44,8 @@ package sprites
 					this.showRightArrow(state);
 					break;
 			}
+			
+			scrollFactor = new FlxPoint(0, 0);
 		}
 		public function showUpArrow(state:String):void
 		{

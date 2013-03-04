@@ -1,10 +1,20 @@
 package states
 {
+	import com.greensock.easing.Bounce;
+	import com.greensock.easing.Linear;
+	import com.greensock.easing.Quad;
+	import com.greensock.motionPaths.RectanglePath2D;
+	import com.greensock.TweenMax;
 	import flash.utils.Dictionary;
+	import org.flixel.FlxCamera;
 	import org.flixel.FlxG;
 	import org.flixel.FlxGroup;
+	import org.flixel.FlxObject;
+	import org.flixel.FlxPoint;
+	import org.flixel.FlxRect;
 	import org.flixel.FlxSprite;
 	import org.flixel.FlxState;
+	import org.flixel.plugin.photonstorm.*;
 	import simon.Simon;
 	import simon.SimonEvent;
 	import sprites.AnimationEvent;
@@ -13,10 +23,9 @@ package states
 	import sprites.IPlayer;
 	import sprites.Ken;
 	import sprites.Player;
-	import sprites.PlayerShadow;
 	import sprites.Ryu;
+	import util.DelayedCallback;
 	
-	import org.flixel.plugin.photonstorm.*;
 	
 	/**
 	 * ...
@@ -28,8 +37,13 @@ package states
 		
 		public static var LEFTS_TURN:String = "Left Players Turn";
 		public static var RIGHTS_TURN:String = "Right Players Turn";
-		public static var SEQUENCE_EXTENSION:String = "Next item in the sequence";
-		private static var ATTACK_TEXT:String = "Repeat the {num} items in the sequence";
+		public static var SEQUENCE_EXTENSION:String = "Next direction in the sequence";
+		private static var ATTACK_TEXT:String = "Repeat the {num} directions in the sequence";
+		private static var SEQUENCE_TUTORIAL:String = "In this game players take it in turns to repeat an ever growing sequence of directions.\nOn the following screen you will be shown the {num} direction added to the sequence"
+		private static var ATTACK_TUTORIAL:String = "It is now the {player} turn to repeat the direction in the sequence"
+		private static var POST_ATTACK_TUTORIAL_SUCCESS:String = "{player} entry was correct, so they scored a hit on the other player";
+		private static var POST_ATTACK_TUTORIAL_FAILURE:String = "{player} entry was incorrect, so the other player blocked their attack";
+		private static var END_OF_TUTORIAL:String = "That's the end of the tutorial\nRemember: The next screen will show the second direction added to the sequence\n...so...uhm...\nRound one...Fight!"
 		
 		public static var HIGH_KICK:uint = 87;//these are the corresponding flash keycodes, but that is really arbitrary.
 		public static var LOW_KICK:uint = 68;
@@ -37,65 +51,79 @@ package states
 		public static var LOW_PUNCH:uint = 69;//dudes :P
 		//private static var TOTAL_POINTS:uint = 10;
 		
-		private var sequenceExtensionTextDuration:int = 3;
-		private var playerAttackTextDuration:int = 3;
-		private var healthDecrement:int = 10;
+		private var m_sequenceExtensionTextDuration:int = 3;
+		private var m_playerAttackTextDuration:int = 3;
+		private var m_instructionTextDurationShort:int = 4;
+		private var m_instructionTextDurationLong:int = 8;
+		private var m_healthDecrement:int;
 		
-		private var simonEngine:Simon = new Simon();
-		private var previousTurn:String;
+		private var m_simonEngine:Simon = new Simon();
+		private var m_previousTurn:String;
 		
-		private var blankDisplay:ArrowDisplay;
-		private var arrowDisplay:ArrowDisplay;
+		private var m_blankDisplay:ArrowDisplay;
+		private var m_arrowDisplay:ArrowDisplay;
+		
 		//later on it would be nice if you could choose a player so we keep these reference names generic
-		private var leftPlayer:Player;
-		private var rightPlayer:Player;
+		private var m_leftPlayer:Player;
+		private var m_rightPlayer:Player;
 		//private var shadow:PlayerShadow;
-		private var leftPlayerHealthBar:FlxBar;
-		private var rightPlayerHealthBar:FlxBar;
-		//private var rightPlayerHealth:FlxBar;
-		private var playerReferences:Dictionary = new Dictionary(true);
-		private var keyBlock:Boolean = false;
-		private var playerMovementInPixels:int;
+		private var m_leftPlayerHealthBar:FlxBar;
+		private var m_rightPlayerHealthBar:FlxBar;
 		
-		private var cx:Number = FlxG.width / 2;
-		private var cy:Number = FlxG.height / 2;
+		private var m_playerReferences:Dictionary = new Dictionary(true);
+		private var m_playerMovementInPixels:int;
 		
-		private var sandbox:Dictionary = new Dictionary(false);
+		private var m_onscreenMessage:Message;
+		private var m_backgroundGraphic:FlxSprite;
+		private var m_background:FlxGroup = new FlxGroup();
+		private var m_midField:FlxGroup = new FlxGroup();
+		private var m_foreGround:FlxGroup = new FlxGroup();
 		
-		private var onscreenMessage:Message;
-		//private var backgroundGraphic:FlxSprite;
-		private var background:FlxGroup = new FlxGroup();
-		private var midField:FlxGroup = new FlxGroup();
-		private var foreGround:FlxGroup = new FlxGroup();
+		internal var m_flagKeyBlock:Boolean = false;
+		internal var m_sandbox:Dictionary = new Dictionary(false);
 		
-		public function GameState() 
+		override public function create():void 
 		{
-			super();
-			playerMovementInPixels = FlxG.width / 10;// / TOTAL_POINTS;
+			FlxG.resetCameras(new LazyCamera(0, 0, FlxG.width, FlxG.height, 0));
+			
+			m_healthDecrement = CONFIG::debug == true ? 50 : 10;
+			m_playerMovementInPixels = 32;// / TOTAL_POINTS;
 			whosTurn = Math.random() > 0.5 ? LEFTS_TURN : RIGHTS_TURN;
-			previousTurn = whosTurn == LEFTS_TURN ? RIGHTS_TURN : LEFTS_TURN;
+			m_previousTurn = whosTurn == LEFTS_TURN ? RIGHTS_TURN : LEFTS_TURN;
 			//init game objects into groups
 			initArrowDisplay();
+			initBackground();
 			initPlayers();
 			
 			//game logic is driven by simon abstract.
 			addSimonListeners();
 			
-			add(background);
-			add(midField);
-			add(foreGround);
+			add(m_background);
+			add(m_midField);
+			add(m_foreGround);
+			
+			FlxG.camera.bounds = new FlxRect(0, 0, m_backgroundGraphic.width, m_backgroundGraphic.height);
+			FlxG.camera.focusOn(m_leftPlayer.getMidpoint());
 			
 			//initialise game
-			doSequenceExtensionTutorialScene();
+			if (Registry.isFirstRun)
+			{
+				doSequenceExtensionTutorialScene();
+			}
+			else
+			{
+				doSequenceExtensionScene();
+			}
 		}
+		
 		override public function destroy():void //called on swap out of FlxGame::switchstate();
 		{
 			//sprite memory management is taken care of internally by flxgroup
-			leftPlayer.removeEventListener(AnimationEvent.PLAYER_HIT_ANIMATION, this.onPlayerHitAnimationTriggered);
-			rightPlayer.removeEventListener(AnimationEvent.PLAYER_HIT_ANIMATION, this.onPlayerHitAnimationTriggered);
+			m_leftPlayer.removeEventListener(AnimationEvent.PLAYER_HIT_ANIMATION, this.onPlayerHitAnimationTriggered);
+			m_rightPlayer.removeEventListener(AnimationEvent.PLAYER_HIT_ANIMATION, this.onPlayerHitAnimationTriggered);
 			removeAnimationListeners();
 			removeSimonListeners();
-			simonEngine.destructor();
+			m_simonEngine.destructor();
 			super.destroy();
 		}
 		
@@ -103,38 +131,49 @@ package states
 
 		private function initArrowDisplay():void 
 		{
-			blankDisplay = new ArrowDisplay(cx, cy);
-			blankDisplay.y -= 45;
-			midField.add(blankDisplay);
-			arrowDisplay = new ArrowDisplay(cx, cy);
-			arrowDisplay.y -= 45;
-			midField.add(arrowDisplay);
+			m_blankDisplay = new ArrowDisplay(FlxG.camera.width * 0.5, FlxG.camera.height * 0.5);
+			m_blankDisplay.y -= 45;
+			m_blankDisplay.scrollFactor = new FlxPoint(0, 0);
+			
+			m_midField.add(m_blankDisplay);
+			
+			m_arrowDisplay = new ArrowDisplay(FlxG.camera.width * 0.5, FlxG.camera.height * 0.5);
+			m_arrowDisplay.y -= 45;
+			m_arrowDisplay.scrollFactor = new FlxPoint(0, 0);
+			
+			m_midField.add(m_arrowDisplay);
+		}
+		private function initBackground():void 
+		{
+			m_backgroundGraphic = new FlxSprite(0, 0, Registry.Background);
+			FlxGradient.overlayGradientOnFlxSprite(m_backgroundGraphic, m_backgroundGraphic.width, m_backgroundGraphic.height * 0.5, [0x99000000, 0x99000000, 0x00000000], 0, m_backgroundGraphic.height - FlxG.camera.height);
+			m_background.add(m_backgroundGraphic);
 		}
 		private function initPlayers():void 
 		{
 			//shadow	= new PlayerShadow(150, 30);
-			leftPlayer = new Ken(cx, cy);
-			rightPlayer = new Ryu(cx, cy);
-			leftPlayer.addEventListener(AnimationEvent.PLAYER_HIT_ANIMATION, this.onPlayerHitAnimationTriggered);
-			rightPlayer.addEventListener(AnimationEvent.PLAYER_HIT_ANIMATION, this.onPlayerHitAnimationTriggered);
-			//shadow.x = cx - shadow.width * 0.5;
-			//shadow.y = (leftPlayer.y + leftPlayer.height);
-			//shadow.alpha = 0.2;
-			leftPlayer.x -= leftPlayer.width;
-			playerReferences[LEFTS_TURN] = leftPlayer;
-			//leftPlayer.health = TOTAL_POINTS / 2;
-			//rightPlayer.health = TOTAL_POINTS / 2;
-			playerReferences[RIGHTS_TURN] = rightPlayer;
-			//foreGround.add(shadow);
-			foreGround.add(leftPlayer);
-			foreGround.add(rightPlayer);
+			m_leftPlayer = new Ken(m_backgroundGraphic.width * 0.5, m_backgroundGraphic.height - 82);
+			m_rightPlayer = new Ryu(m_backgroundGraphic.width * 0.5, m_backgroundGraphic.height - 82);
+			m_leftPlayer.addEventListener(AnimationEvent.PLAYER_HIT_ANIMATION, this.onPlayerHitAnimationTriggered);
+			m_rightPlayer.addEventListener(AnimationEvent.PLAYER_HIT_ANIMATION, this.onPlayerHitAnimationTriggered);
+			m_leftPlayer.x -= m_leftPlayer.width;
 			
-			leftPlayerHealthBar = new FlxBar(8, 8, FlxBar.FILL_LEFT_TO_RIGHT, 130, 24, leftPlayer, "health");
-			leftPlayerHealthBar.createFilledBar(0xFFFFFF00, 0xFFFF0000, true, 0xFFFFFFFF);
-			rightPlayerHealthBar = new FlxBar(FlxG.width - (130 + 8), 8, FlxBar.FILL_LEFT_TO_RIGHT, 130, 24, rightPlayer, "health");
-			rightPlayerHealthBar.createFilledBar(0xFFFFFF00, 0xFFFF0000, true, 0xFFFFFFFF);
-			midField.add(leftPlayerHealthBar);
-			midField.add(rightPlayerHealthBar);
+			m_playerReferences[LEFTS_TURN] = m_leftPlayer;
+			m_playerReferences[RIGHTS_TURN] = m_rightPlayer;
+			
+			m_foreGround.add(m_leftPlayer);
+			m_foreGround.add(m_rightPlayer);
+			
+			m_leftPlayerHealthBar = new FlxBar(8, 8, FlxBar.FILL_LEFT_TO_RIGHT, 130, 24, m_leftPlayer, "health");
+			m_leftPlayerHealthBar.createFilledBar(0xFFFFFF00, 0xFFFF0000, true, 0xFFFFFFFF);
+			m_leftPlayerHealthBar.scrollFactor = new FlxPoint(0, 0);
+			
+			m_rightPlayerHealthBar = new FlxBar(FlxG.width - (130 + 8), 8, FlxBar.FILL_LEFT_TO_RIGHT, 130, 24, m_rightPlayer, "health");
+			m_rightPlayerHealthBar.createFilledBar(0xFFFFFF00, 0xFFFF0000, true, 0xFFFFFFFF);
+			m_rightPlayerHealthBar.scrollFactor = new FlxPoint(0, 0);
+			
+			m_midField.add(m_leftPlayerHealthBar);
+			m_midField.add(m_rightPlayerHealthBar);
 		}
 
 //overrides--------------------------------------------------------------------------------------------------
@@ -161,32 +200,25 @@ package states
 		}
 		private function onFinalEntry(event:SimonEvent):void
 		{
-			keyBlock = true;
+			m_flagKeyBlock = true;
 			
-			var nextScene:Function = doSequenceExtensionScene;
-			if (simonEngine.sequenceLength == 0)
+			if (Player(m_playerReferences[whosTurn]).isPerformingActionSequence)
 			{
-				nextScene = doSequenceExtensionTutorialScene;
-			}
-			
-			if (Player(playerReferences[whosTurn]).isPerformingActionSequence)
-			{
-				var forPlayer:IAnimationEventDispatcher = playerReferences[whosTurn]
+				var forPlayer:IAnimationEventDispatcher = m_playerReferences[whosTurn]
 				queueFunctionUntilAnimationCompleted(forPlayer, releaseKeyBlock);
 				queueFunctionUntilAnimationCompleted(forPlayer, clearArrows);
-				queueFunctionUntilAnimationCompleted(forPlayer, nextScene);
+				queueFunctionUntilAnimationCompleted(forPlayer, doHouseKeeping);
 				listenForAnimationComplete(forPlayer);
 			}
 			else
 			{
-				nextScene();
+				doHouseKeeping();
 			}
 		}
 		private function onPlayerHitAnimationTriggered(event:AnimationEvent):void
 		{
 			updateHealth();
 			updatePositions();
-			checkFatality();
 		}
 		private function onSequenceEnded(event:SimonEvent):void
 		{
@@ -199,7 +231,7 @@ package states
 		}
 		private function dequeueMethods(forDispatcher:IAnimationEventDispatcher):void 
 		{
-			var functionQueue:Array = sandbox[forDispatcher];
+			var functionQueue:Array = m_sandbox[forDispatcher];
 			
 			if (functionQueue == null)
 			{
@@ -214,7 +246,7 @@ package states
 				method.apply(this, params);
 			}
 			//get rid of empty array
-			sandbox[forDispatcher] = null;
+			m_sandbox[forDispatcher] = null;
 		}
 		
 //scenes------------------------------------------------------------------------------------------------------
@@ -222,70 +254,67 @@ package states
 		//explains what will happen next...
 		private function doSequenceExtensionTutorialScene():void 
 		{
-			keyBlock = true;
-			
-			//dimTheEnergyBars();
+			m_flagKeyBlock = true;
 			
 			var insertCount:String;
-			if (simonEngine.sequenceLength == 0)
+			if (m_simonEngine.sequenceLength == 0 && Registry.isFirstRun)
 			{
 				insertCount = "first";
 			}
 			
-			var instructions:String = "In this game players take it in turns to repeat\nan ever growing sequence of directions\non the following screen you will be shown\nthe " + insertCount + " direction in the sequence"
-			displayText(instructions, 0xFFFFFFFF, 10);
+			var instructions:String = SEQUENCE_TUTORIAL.replace("{num}", insertCount);
+			displayText(instructions, 0xFFFFFFFF, m_instructionTextDurationLong);
 			
-			queueFunctionUntilAnimationCompleted(onscreenMessage, releaseKeyBlock);
-			queueFunctionUntilAnimationCompleted(onscreenMessage, clearArrows);
-			//queueFunctionUntilAnimationCompleted(onscreenMessage, brightenTheEnergyBars);
-			queueFunctionUntilAnimationCompleted(onscreenMessage, doSequenceExtensionScene);
-			listenForAnimationComplete(onscreenMessage);
+			queueFunctionUntilAnimationCompleted(m_onscreenMessage, releaseKeyBlock);
+			queueFunctionUntilAnimationCompleted(m_onscreenMessage, clearArrows);
+			queueFunctionUntilAnimationCompleted(m_onscreenMessage, doSequenceExtensionScene);
+			listenForAnimationComplete(m_onscreenMessage);
 		}
 		//computer picks a new random arrow for the sequence
 		private function doSequenceExtensionScene():void
 		{
 			//FlxG.bgColor = 0xFF333333;
-			keyBlock = true; //attack scene needs to pause the game while the player reads the text
-			displayText(SEQUENCE_EXTENSION, 0xFFFFFFFF, sequenceExtensionTextDuration);
+			m_flagKeyBlock = true; //attack scene needs to pause the game while the player reads the text
+			displayText(SEQUENCE_EXTENSION, 0xFFFFFFFF, m_sequenceExtensionTextDuration);
 			
 			var randomArrow:int = Math.floor(Math.random() * 3);
 			switch (randomArrow) 
 			{
 				case 0:
-					arrowDisplay.addArrow(Arrow.UP, Arrow.REGULAR);
-					simonEngine.inputAction(GameState.HIGH_KICK);
+					m_arrowDisplay.addArrow(Arrow.UP, Arrow.REGULAR);
+					m_simonEngine.inputAction(GameState.HIGH_KICK);
 				break;
 				case 1:
-					arrowDisplay.addArrow(Arrow.DOWN, Arrow.REGULAR);
-					simonEngine.inputAction(GameState.LOW_KICK);
+					m_arrowDisplay.addArrow(Arrow.DOWN, Arrow.REGULAR);
+					m_simonEngine.inputAction(GameState.LOW_KICK);
 				break;
 				case 2:
-					arrowDisplay.addArrow(Arrow.LEFT, Arrow.REGULAR);
-					simonEngine.inputAction(GameState.HIGH_PUNCH);
+					m_arrowDisplay.addArrow(Arrow.LEFT, Arrow.REGULAR);
+					m_simonEngine.inputAction(GameState.HIGH_PUNCH);
 				break;
 				case 3:
-					arrowDisplay.addArrow(Arrow.RIGHT, Arrow.REGULAR);
-					simonEngine.inputAction(GameState.LOW_PUNCH);
+					m_arrowDisplay.addArrow(Arrow.RIGHT, Arrow.REGULAR);
+					m_simonEngine.inputAction(GameState.LOW_PUNCH);
 				break;
 				default:
 					throw new Error(randomArrow + ": is out of range");
 			}
 			
 			var nextScene:Function = doAttackScene;
-			if (simonEngine.sequenceLength <= 1)
+			if (m_simonEngine.sequenceLength == 1 && Registry.isFirstRun)
 			{
-				nextScene = doAttackTutorialLessonScene;
+				nextScene = doAttackTutorialScene;
 			}
 			
-			queueFunctionUntilAnimationCompleted(onscreenMessage, releaseKeyBlock);
-			queueFunctionUntilAnimationCompleted(onscreenMessage, clearArrows);
-			queueFunctionUntilAnimationCompleted(onscreenMessage, nextScene);
-			listenForAnimationComplete(onscreenMessage);
+			queueFunctionUntilAnimationCompleted(m_onscreenMessage, releaseKeyBlock);
+			queueFunctionUntilAnimationCompleted(m_onscreenMessage, clearArrows);
+			queueFunctionUntilAnimationCompleted(m_onscreenMessage, nextScene);
+			listenForAnimationComplete(m_onscreenMessage);
 		}
 		//explains what will happen in the attack tutorial section
-		private function doAttackTutorialLessonScene(lessonNumber:int = 0):void 
+		private function doAttackTutorialScene():void 
 		{
-			keyBlock = true;
+			m_flagKeyBlock = true;
 			
 			var insertplayer:String;
 			if (whosTurn == LEFTS_TURN)
@@ -297,93 +326,151 @@ package states
 				insertplayer = "right player's";
 			}
 			
-			switch(lessonNumber)
-			{
-			case 0:
+			displayText(ATTACK_TUTORIAL.replace("{player}", insertplayer), 0xFFFFFF, m_instructionTextDurationShort);
 				
-				displayText("it is now the " + insertplayer + " turn to enter each direction in the sequence", 0xFFFFFF, 4);
-				
-				queueFunctionUntilAnimationCompleted(onscreenMessage, doAttackTutorialLessonScene, 1);
-				listenForAnimationComplete(onscreenMessage);
-				
-				break;
-			case 1:
-				
-				displayText("if the " + insertplayer + " entry is correct they will score a hit on the other player", 0xFFFFFF, 4);
-				
-				queueFunctionUntilAnimationCompleted(onscreenMessage, doAttackTutorialLessonScene, 2);
-				listenForAnimationComplete(onscreenMessage);
-				
-				break;
-			case 2:
-				
-				var currentPlayer:IAnimationEventDispatcher = playerReferences[whosTurn] as IAnimationEventDispatcher;
-				
-				doHitAnimation(GameState.HIGH_KICK);
-				queueFunctionUntilAnimationCompleted(currentPlayer, doAttackTutorialLessonScene, 3);
-				listenForAnimationComplete(currentPlayer);
-				
-				break;
-			case 3:
-				
-				displayText("if the " + insertplayer + " entry is incorrect the other player will block the attack", 0xFFFFFF, 4);
-				queueFunctionUntilAnimationCompleted(onscreenMessage, doAttackTutorialLessonScene, 4);
-				listenForAnimationComplete(onscreenMessage);
-				
-				break;
-			case 4:
-				
-				var currentPlayer:IAnimationEventDispatcher = playerReferences[whosTurn] as IAnimationEventDispatcher;
-				
-				doDefenseAnimation(GameState.HIGH_KICK);
-				
-				queueFunctionUntilAnimationCompleted(currentPlayer, releaseKeyBlock);
-				queueFunctionUntilAnimationCompleted(currentPlayer, doAttackScene);
-				listenForAnimationComplete(currentPlayer);
-				
-				break;
-			}
+			queueFunctionUntilAnimationCompleted(m_onscreenMessage, releaseKeyBlock);
+			queueFunctionUntilAnimationCompleted(m_onscreenMessage, doAttackScene);
+			listenForAnimationComplete(m_onscreenMessage);
 		}
+		
 		private function doAttackScene():void
 		{
-			bringPlayerToFront(Player(playerReferences[whosTurn]));
-			var attackTextWithCount:String = ATTACK_TEXT.replace("{num}", simonEngine.sequenceLength);
-			displayText(whosTurn + ": " + attackTextWithCount, 0xFFFFFFFF, playerAttackTextDuration);
+			bringPlayerToFront(Player(m_playerReferences[whosTurn]));
+			var attackTextWithCount:String = ATTACK_TEXT.replace("{num}", m_simonEngine.sequenceLength);
+			displayText(whosTurn + ": " + attackTextWithCount, 0xFFFFFFFF, m_playerAttackTextDuration);
 			
-			doArrowPlaceholders();
+			displayArrowPlaceholders();
+			//events from simon engine drive next section of gameplay
+		}
+		
+		private function doPostAttackTutorialScene():void
+		{
+			m_flagKeyBlock = true;
+			
+			var attacker:IPlayer = m_playerReferences[whosTurn];
+			var defender:IPlayer = m_playerReferences[m_previousTurn];
+			
+			var insertPlayer:String;
+			if (whosTurn == LEFTS_TURN)
+			{
+				insertPlayer = "left Player's";
+			}
+			else if (whosTurn == RIGHTS_TURN)
+			{
+				insertPlayer = "right player's";
+			}
+			
+			var feedback:String;
+			if ((defender as Player).health < 100)
+			{
+				feedback = POST_ATTACK_TUTORIAL_SUCCESS.replace("{player}", insertPlayer); 
+			}
+			else
+			{
+				feedback = POST_ATTACK_TUTORIAL_FAILURE.replace("{player}", insertPlayer);
+			}
+			
+			displayText(feedback, 0xFFFFFF, m_instructionTextDurationShort);
+			
+			queueFunctionUntilAnimationCompleted(m_onscreenMessage, doEndTutorialScene);
+			listenForAnimationComplete(m_onscreenMessage);
+		}
+		private function doEndTutorialScene():void 
+		{
+			m_flagKeyBlock = true;
+			displayText(END_OF_TUTORIAL, 0xFFFFFF, m_instructionTextDurationShort);
+			
+			queueFunctionUntilAnimationCompleted(m_onscreenMessage, releaseKeyBlock);
+			queueFunctionUntilAnimationCompleted(m_onscreenMessage, doSequenceExtensionScene);
+			listenForAnimationComplete(m_onscreenMessage);
+		}
+		private function doGameOverScene():void
+		{
+			var loser:IPlayer = m_playerReferences[m_previousTurn];
+			var direction:int;
+			if (loser == m_leftPlayer)
+			{
+				direction = m_leftPlayer.x - 50;
+			}
+			else if (loser == m_rightPlayer)
+			{
+				direction = m_rightPlayer.x + 50;
+			}
+			
+			if (direction > (m_backgroundGraphic.width - 32))
+			{
+				direction = (m_backgroundGraphic.width - 32);
+			}
+			else if (direction < 0)
+			{
+				direction = 0;
+			}
+			
+			TweenMax.to(loser, 1.5, { onInit:loser.youGotKnockedTheFuckOut, 
+						startAt: { y:m_backgroundGraphic.height - 102 }, ease:Bounce.easeOut, y:m_backgroundGraphic.height - 82, 
+						onComplete: gotoGameOverState} );
+			TweenMax.to(loser, 1.5, { x:direction });
+		}
+		//after the animations from the attack scene have completed we need
+		//to branch appropriately
+		private function doHouseKeeping():void 
+		{
+			var nextScene:Function = doSequenceExtensionScene;
+			
+			if (m_simonEngine.sequenceLength == 0 && Registry.isFirstRun)
+			{
+				nextScene = doSequenceExtensionTutorialScene;
+			}
+			
+			if (m_simonEngine.sequenceLength == 1 && Registry.isFirstRun)
+			{
+				nextScene = doPostAttackTutorialScene;
+			}
+			
+			if (m_simonEngine.sequenceLength == 2 && Registry.isFirstRun)
+			{
+				Registry.isFirstRun == false;
+			}
+			
+			if (checkFatality())
+			{
+				nextScene = doGameOverScene;
+			}
+			
+			nextScene();
 		}
 		
 //animations---------------------------------------------------------------------------------------
 
 		private function doPlayerInput():void
 		{
-			if (keyBlock)
+			if (m_flagKeyBlock)
 			{
 				return;
 			}
 			
 			if (FlxG.keys.justReleased("UP"))//moves should be mutually exclusive 
 			{
-				simonEngine.inputAction(GameState.HIGH_KICK);
+				m_simonEngine.inputAction(GameState.HIGH_KICK);
 			}
 			else if (FlxG.keys.justReleased("DOWN"))
 			{
-				simonEngine.inputAction(GameState.LOW_KICK);
+				m_simonEngine.inputAction(GameState.LOW_KICK);
 			}
 			else if (FlxG.keys.justReleased("LEFT"))
 			{	
-				simonEngine.inputAction(GameState.HIGH_PUNCH);
+				m_simonEngine.inputAction(GameState.HIGH_PUNCH);
 			}
 			else if (FlxG.keys.justReleased("RIGHT"))
 			{	
-				simonEngine.inputAction(GameState.LOW_PUNCH);
+				m_simonEngine.inputAction(GameState.LOW_PUNCH);
 			}
 		}
 		private function doHitAnimation(keycode:uint):void
 		{
 			//cast as interface for methods
-			var attacker:IPlayer = playerReferences[whosTurn];
-			var defender:IPlayer = playerReferences[previousTurn];
+			var attacker:IPlayer = m_playerReferences[whosTurn];
+			var defender:IPlayer = m_playerReferences[m_previousTurn];
 			
 			switch(keycode)
 			{
@@ -408,8 +495,8 @@ package states
 		private function doDefenseAnimation(keycode:uint):void
 		{
 			//cast as interface for methods
-			var attacker:IPlayer = playerReferences[whosTurn];
-			var defender:IPlayer = playerReferences[previousTurn];
+			var attacker:IPlayer = m_playerReferences[whosTurn];
+			var defender:IPlayer = m_playerReferences[m_previousTurn];
 			
 			switch(keycode)
 			{
@@ -433,40 +520,40 @@ package states
 		}
 		private function displayText(text:String, withColour:uint, forDuration:int = 1):void 
 		{
-			if (onscreenMessage !== null)
+			if (m_onscreenMessage !== null)
 			{
-				onscreenMessage.kill();//may not remove the reference due to garbage collection
-				onscreenMessage = null;
+				m_onscreenMessage.kill();//may not remove the reference due to garbage collection
+				m_onscreenMessage = null;
 			}
 			
 			var instruction:Message = new Message(text, forDuration, withColour);
 			add(instruction);
 			instruction.begin();
-			onscreenMessage = instruction;
+			m_onscreenMessage = instruction;
 		}
 		private function displayArrow(keycode:uint, state:String):void
 		{
 			switch(keycode)
 			{
 				case GameState.HIGH_KICK:
-					arrowDisplay.addArrow(Arrow.UP, state, simonEngine.sequenceLength);
+					m_arrowDisplay.addArrow(Arrow.UP, state, m_simonEngine.sequenceLength);
 				break;
 				case GameState.LOW_KICK:
-					arrowDisplay.addArrow(Arrow.DOWN, state, simonEngine.sequenceLength);
+					m_arrowDisplay.addArrow(Arrow.DOWN, state, m_simonEngine.sequenceLength);
 				break;
 				case GameState.HIGH_PUNCH:
-					arrowDisplay.addArrow(Arrow.LEFT, state, simonEngine.sequenceLength);
+					m_arrowDisplay.addArrow(Arrow.LEFT, state, m_simonEngine.sequenceLength);
 				break;
 				case GameState.LOW_PUNCH:
-					arrowDisplay.addArrow(Arrow.RIGHT, state, simonEngine.sequenceLength);
+					m_arrowDisplay.addArrow(Arrow.RIGHT, state, m_simonEngine.sequenceLength);
 				break;
 			}
 		}
-		private function doArrowPlaceholders():void
+		private function displayArrowPlaceholders():void
 		{
-			for (var i:int = 0; i<simonEngine.sequenceLength; i++)
+			for (var i:int = 0; i<m_simonEngine.sequenceLength; i++)
 			{
-				blankDisplay.addArrow(0, Arrow.BLANK);
+				m_blankDisplay.addArrow(0, Arrow.BLANK);
 			}
 		}
 
@@ -474,54 +561,47 @@ package states
 
 		private function queueFunctionUntilAnimationCompleted(dispatcher:IAnimationEventDispatcher, doAction:Function, ...rest):void
 		{
-			if (sandbox[dispatcher] == null)
+			if (m_sandbox[dispatcher] == null)
 			{
-				sandbox[dispatcher] = new Array();
+				m_sandbox[dispatcher] = new Array();
 			}
-			sandbox[dispatcher].push(new QueuedMethod(doAction, rest));
+			m_sandbox[dispatcher].push(new QueuedMethod(doAction, rest));
 		}
-		//see if the win condition is satisfied mid-fight
-		private function checkFatality():void
+		private function checkFatality():Boolean
 		{
-			var defender:Player = playerReferences[previousTurn];
+			var isFatality:Boolean = false;
+			var defender:Player = m_playerReferences[m_previousTurn];
 			if (defender.health <= 0)
 			{
-				doGameOver();
+				isFatality = true;
 			}
+			
+			return isFatality;
 		}
 		private function updatePositions():void
 		{
-			var attacker:Player = playerReferences[whosTurn];
-			var defender:Player = playerReferences[previousTurn];
+			var attacker:Player = m_playerReferences[whosTurn];
+			var defender:Player = m_playerReferences[m_previousTurn];
 			
-			var leftEdge:int = 0 + 32;
-			var rightEdge:int = FlxG.width - 32;
-			
-			if (attacker == leftPlayer && rightPlayer.x < rightEdge)
+			if (attacker == m_leftPlayer && m_rightPlayer.x < (m_backgroundGraphic.width - 32) )
 			{
-				attacker.x += playerMovementInPixels;
-				defender.x += playerMovementInPixels;
+				TweenMax.to(attacker, 0.3, { x: attacker.x + m_playerMovementInPixels, ease:Linear.easeNone} );
+				TweenMax.to(defender, 0.3, { x: defender.x + m_playerMovementInPixels, ease:Linear.easeNone } );
 			}
-			if (attacker == rightPlayer && leftPlayer.x > leftEdge)
+			if (attacker == m_rightPlayer && m_leftPlayer.x > 0)
 			{
-				attacker.x -= playerMovementInPixels;
-				defender.x -= playerMovementInPixels;
+				TweenMax.to(attacker, 0.3, { x: attacker.x - m_playerMovementInPixels, ease:Linear.easeNone } );
+				TweenMax.to(defender, 0.3, { x: defender.x - m_playerMovementInPixels, ease:Linear.easeNone } );
 			}
-			
-			/*
-			leftPlayer.x = 	leftPlayer.health * playerMovementInPixels - leftPlayer.width;
-			rightPlayer.x = leftPlayer.health * playerMovementInPixels;
-			shadow.x = 		leftPlayer.health * playerMovementInPixels - shadow.width * 0.5;
-			*/
 		}
 		private function updateHealth():void
 		{
-			var defender:Player = playerReferences[previousTurn];
-			defender.health -= healthDecrement;
+			var defender:Player = m_playerReferences[m_previousTurn];
+			defender.health -= m_healthDecrement;
 		}
 		private function switchTurns():void
 		{
-			previousTurn = whosTurn;
+			m_previousTurn = whosTurn;
 			if (whosTurn == LEFTS_TURN)
 			{
 				whosTurn = RIGHTS_TURN;
@@ -530,32 +610,29 @@ package states
 			{
 				whosTurn = LEFTS_TURN;
 			}
+			
+			FlxG.camera.follow(m_playerReferences[whosTurn] as Player);
 		}
 		private function clearArrows():void
 		{
-			blankDisplay.clearArrows();
-			arrowDisplay.clearArrows();
+			m_blankDisplay.clearArrows();
+			m_arrowDisplay.clearArrows();
 		}
 		private function releaseKeyBlock():void 
 		{
-			keyBlock = false;
+			m_flagKeyBlock = false;
 		}
 		private function bringPlayerToFront(playerToFront:Player):void 
 		{
-			if (foreGround.members[0] !== playerToFront)
+			if (m_foreGround.members[0] == playerToFront)
 			{
-				foreGround.members.reverse();
+				m_foreGround.members.reverse();
 			}
 		}
-		private function dimTheEnergyBars():void 
+		private function gotoGameOverState():void 
 		{
-			leftPlayerHealthBar.alpha = 0.2;
-			rightPlayerHealthBar.alpha = 0.2;
-		}
-		private function brightenTheEnergyBars():void 
-		{
-			leftPlayerHealthBar.alpha = 1.0;
-			rightPlayerHealthBar.alpha = 1.0;
+			var winnerIsLeftPlayer:Boolean = (m_playerReferences[whosTurn] == m_leftPlayer);
+			new DelayedCallback(FlxG, 2, FlxG.switchState, new WinnerState(winnerIsLeftPlayer));
 		}
 		private function listenForAnimationComplete(to:IAnimationEventDispatcher):void
 		{
@@ -563,34 +640,28 @@ package states
 		}
 		private function removeAnimationListeners():void
 		{
-			if (leftPlayer.hasEventListener(AnimationEvent.ANIMATION_COMPLETE))
+			if (m_leftPlayer.hasEventListener(AnimationEvent.ANIMATION_COMPLETE))
 			{
-				leftPlayer.addEventListener(AnimationEvent.ANIMATION_COMPLETE, this.onPlayerAnimationComplete);
+				m_leftPlayer.addEventListener(AnimationEvent.ANIMATION_COMPLETE, this.onPlayerAnimationComplete);
 			}
-			if (rightPlayer.hasEventListener(AnimationEvent.ANIMATION_COMPLETE))
+			if (m_rightPlayer.hasEventListener(AnimationEvent.ANIMATION_COMPLETE))
 			{
-				leftPlayer.addEventListener(AnimationEvent.ANIMATION_COMPLETE, this.onPlayerAnimationComplete);
+				m_leftPlayer.addEventListener(AnimationEvent.ANIMATION_COMPLETE, this.onPlayerAnimationComplete);
 			}
 		}
 		private function addSimonListeners():void
 		{
-			simonEngine.addEventListener(SimonEvent.ENTRY_CORRECT, this.onEntryCorrect);
-			simonEngine.addEventListener(SimonEvent.ENTRY_INCORRECT, this.onEntryIncorrect);
-			simonEngine.addEventListener(SimonEvent.FINAL_ENTRY, this.onFinalEntry);
-			simonEngine.addEventListener(SimonEvent.SEQUENCE_ENDED, this.onSequenceEnded);
+			m_simonEngine.addEventListener(SimonEvent.ENTRY_CORRECT, this.onEntryCorrect);
+			m_simonEngine.addEventListener(SimonEvent.ENTRY_INCORRECT, this.onEntryIncorrect);
+			m_simonEngine.addEventListener(SimonEvent.FINAL_ENTRY, this.onFinalEntry);
+			m_simonEngine.addEventListener(SimonEvent.SEQUENCE_ENDED, this.onSequenceEnded);
 		}
 		private function removeSimonListeners():void
 		{
-			simonEngine.removeEventListener(SimonEvent.ENTRY_CORRECT, this.onEntryCorrect);
-			simonEngine.removeEventListener(SimonEvent.ENTRY_INCORRECT, this.onEntryIncorrect);
-			simonEngine.removeEventListener(SimonEvent.FINAL_ENTRY, this.onFinalEntry);
-			simonEngine.removeEventListener(SimonEvent.SEQUENCE_ENDED, this.onSequenceEnded);
-		}
-		//lazy game over
-		private function doGameOver():void
-		{
-			var winner:IPlayer = playerReferences[whosTurn];
-			FlxG.switchState(new WinnerState(winner));
+			m_simonEngine.removeEventListener(SimonEvent.ENTRY_CORRECT, this.onEntryCorrect);
+			m_simonEngine.removeEventListener(SimonEvent.ENTRY_INCORRECT, this.onEntryIncorrect);
+			m_simonEngine.removeEventListener(SimonEvent.FINAL_ENTRY, this.onFinalEntry);
+			m_simonEngine.removeEventListener(SimonEvent.SEQUENCE_ENDED, this.onSequenceEnded);
 		}
 	}
 }

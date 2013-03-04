@@ -17,25 +17,26 @@ package states
 	 */
 	public class TitleState extends FlxState
 	{
-		[Embed(source = "../sprites/logo.png")] private var Logo:Class;
-		[Embed(source = "../sprites/worldwarriorfont.png")] private var WWFont:Class;
 		
 		private var m_instructionText:FlxBitmapFont;
 		private var m_logo:FlxSprite;
-		private var backgroundStarfield:StarfieldFX;
-		private var background:FlxGroup = new FlxGroup();
+		private var m_background:FlxGroup;
+		private var m_flagStartPressed:Boolean = false;
 		
-		public function TitleState()
+		override public function create():void 
 		{
-			initStarfieldBackground();
-			add(background);
+			m_background = Registry.starfieldBackground;
+			add(m_background);
 			initLogo();
 			initInstructionText();
 		}
 		
 		override public function destroy():void
 		{
-			m_logo.destroy();
+			 //otherwise they gets destroyed...
+			remove(m_background);
+			remove(m_instructionText);
+			super.destroy();
 		}
 		
 		override public function update():void
@@ -45,8 +46,12 @@ package states
 		
 		private function doPlayerInput():void 
 		{
-			if (FlxG.keys.any())
+			if (FlxG.keys.any() && false == m_flagStartPressed)
 			{
+				m_flagStartPressed = true;
+				
+				FlxG.play(Registry.Coin);
+				
 				TweenMax.to(m_instructionText, 0.2, { delay:0.4, 
 							startAt: { alpha:0 }, alpha:1, repeat:10, 
 							yoyo:true, onComplete:OnTweenComplete, 
@@ -71,22 +76,9 @@ package states
 			}
 		}
 		
-		private function initStarfieldBackground():void 
-		{
-			if (FlxG.getPlugin(FlxSpecialFX) == null)
-			{
-				FlxG.addPlugin(new FlxSpecialFX);
-			}
-			
-			backgroundStarfield = FlxSpecialFX.starfield();
-			backgroundStarfield.setBackgroundColor(0xFFFFFF);
-			backgroundStarfield.setStarSpeed(-1, 0);
-			background.add(backgroundStarfield.create(0, 0, FlxG.width, FlxG.height, 200, StarfieldFX.STARFIELD_TYPE_2D));
-		}
-		
 		private function initInstructionText():void 
 		{
-			m_instructionText = new FlxBitmapFont(WWFont, 12, 16, FlxBitmapFont.TEXT_SET3, 17, 8, 4, 4, 1);
+			m_instructionText = Registry.WorldWarriorBitmapFont;
 			m_instructionText.multiLine = true;
 			m_instructionText.text = "A GAME FOR TWO PLAYERS:\nPRESS ANY KEY TO START";
 			m_instructionText.y = FlxG.height * 0.8;
@@ -96,7 +88,7 @@ package states
 		
 		private function initLogo():void 
 		{
-			m_logo = new FlxSprite(0, 0, Logo);
+			m_logo = new FlxSprite(0, 0, Registry.Logo);
 			m_logo.x = (FlxG.width - m_logo.width) * 0.5;
 			m_logo.y = (FlxG.height - m_logo.height) * 0.5;
 			add(m_logo);

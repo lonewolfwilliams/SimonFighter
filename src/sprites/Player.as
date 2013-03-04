@@ -1,6 +1,8 @@
 package sprites 
 {
 	import adobe.utils.CustomActions;
+	import com.greensock.easing.Bounce;
+	import com.greensock.TweenMax;
 	import flash.display.ActionScriptVersion;
 	import flash.events.Event;
 	import flash.events.EventDispatcher;
@@ -10,13 +12,13 @@ package sprites
 	import org.flixel.FlxG;
 	import org.flixel.FlxGroup;
 	import org.flixel.FlxSprite;
+	import org.flixel.plugin.photonstorm.FlxExtendedSprite;
 	/**
 	 * ...
 	 * @author Gareth Williams
 	 */
-	public class Player extends FlxSprite implements IAnimationEventDispatcher
+	public class Player extends FlxExtendedSprite implements IAnimationEventDispatcher
 	{
-		[Embed(source="sparks.png")] private var sparkParticlesImg:Class;
 		
 		//we may add other types of points later eg experience points
 		public var colour:uint = 0;
@@ -40,14 +42,27 @@ package sprites
 			starParticles.setXSpeed(-150,150);
 			starParticles.setYSpeed(-200,0);
 			starParticles.setRotation( -720, -720);
-			starParticles.makeParticles(sparkParticlesImg, 100, 16, true);
+			starParticles.makeParticles(Registry.sparkParticlesImg, 100, 16, true);
 			particles.add(starParticles);
 		}
 		//override
 		override public function update():void
 		{
-			if (isPerformingAction && finished) this.onAnimationComplete();
-			if (!isPerformingAction) super.play("idle");
+			if (isPerformingAction && finished)
+			{
+				this.onAnimationComplete();
+			}
+			
+			if (false == isPerformingAction && alive)
+			{
+				super.play("idle");
+			}
+			
+			if (false == isPerformingAction && false == alive)
+			{
+				super.play("ko");
+			}
+			
 			starParticles.update();
 			super.update();
 		}
@@ -110,6 +125,7 @@ package sprites
 			starParticles.start(true, 3);
 			dispatchEvent(new AnimationEvent(AnimationEvent.PLAYER_HIT_ANIMATION, this));
 		}
+		
 		//wrappers
 		public function addEventListener (type:String, listener:Function, useCapture:Boolean = false, priority:int = 0, useWeakReference:Boolean = false):void
 		{
