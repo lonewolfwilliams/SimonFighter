@@ -89,7 +89,7 @@ package
 		}
 		private function updateArrowScale():void
 		{
-			var totalWidth:Number = (onscreenArrows.length+1) * onscreenArrows[0].width;
+			var totalWidth:Number = sequenceLength * 32;
 			if (totalWidth > FlxG.width)
 			{
 				var scaleTo:Number = FlxG.width / totalWidth;

@@ -29,15 +29,15 @@ package
 		{
 			m_id = id++;
 			
-			//trace("new message: " + m_id);
-			
 			eventDispatcher = new EventDispatcher();
 			secondsOnScreen = duration;
 			displayTimer = new Timer(1000 * secondsOnScreen, 1);
 			displayTimer.addEventListener(TimerEvent.TIMER_COMPLETE, this.onTimeOut);
-			super(0, FlxG.camera.height / 5, FlxG.camera.width, text);
+			super(0, FlxG.camera.height * 0.14, FlxG.camera.width, text);
+			this.antialiasing = false;
 			this.alignment = "center";
 			this.color = colour;
+			this.size = 16; //double normal
 			this.shadow = 2;
 			this.scrollFactor = new FlxPoint(0, 0);
 		}
@@ -51,11 +51,17 @@ package
 		{
 			displayTimer.start();
 		}
+		public function cancel():void
+		{
+			displayTimer.stop();
+			displayTimer.removeEventListener(TimerEvent.TIMER_COMPLETE, this.onTimeOut);
+			eventDispatcher.dispatchEvent(new AnimationEvent(AnimationEvent.ANIMATION_COMPLETE, this));
+			this.kill();//this doesn't call destroy but does mark them as inactive, and not alive. - they will be garbage swept on scene change
+		}
 		private function onTimeOut(event:TimerEvent):void
 		{
 			//trace("Message - animation complete " + m_id);
-			eventDispatcher.dispatchEvent(new AnimationEvent(AnimationEvent.ANIMATION_COMPLETE, this));
-			
+			eventDispatcher.dispatchEvent(new AnimationEvent(AnimationEvent.ANIMATION_COMPLETE, this));		
 			this.kill();
 		}
 		//wrappers

@@ -13,20 +13,23 @@ package
 	 */
 	public class Registry 
 	{
-		[Embed(source = "/sprites/Coin [SFX].mp3")] public static const Coin:Class;
+		[Embed(source = "/audio/Coin [SFX].mp3")] public static const Coin:Class;
 		
 		[Embed(source = "/sprites/logo.png")] public static const Logo:Class;
 		[Embed(source = "/sprites/worldwarriorfont.png")] public static const WWFont:Class;
 		
+		[Embed(source = "/sprites/udlr.png")] public static const UDLR:Class;
+		[Embed(source = "/sprites/wasd.png")] public static const WASD:Class;
+		
 		[Embed(source = "/sprites/kenSheet.png")] public static const kenSheetImg:Class;
 		
-		[Embed(source = "/sprites/206 [SFX].mp3")] public static const punch:Class;
-		[Embed(source = "/sprites/207 [SFX].mp3")] public static const kick:Class;
-		[Embed(source = "/sprites/208 [SFX].mp3")] public static const sweep:Class;
-		[Embed(source = "/sprites/215 [SFX].mp3")] public static const hit1:Class;
-		[Embed(source = "/sprites/214 [SFX].mp3")] public static const block:Class;
-		[Embed(source = "/sprites/216 [SFX].mp3")] public static const hit2:Class;
-		[Embed(source = "/sprites/ko [SFX].mp3")]  public static const ko:Class;
+		[Embed(source = "/audio/206 [SFX].mp3")] public static const punch:Class;
+		[Embed(source = "/audio/207 [SFX].mp3")] public static const kick:Class;
+		[Embed(source = "/audio/208 [SFX].mp3")] public static const sweep:Class;
+		[Embed(source = "/audio/215 [SFX].mp3")] public static const hit1:Class;
+		[Embed(source = "/audio/214 [SFX].mp3")] public static const block:Class;
+		[Embed(source = "/audio/216 [SFX].mp3")] public static const hit2:Class;
+		[Embed(source = "/audio/ko [SFX].mp3")]  public static const ko:Class;
 		
 		[Embed(source = "/sprites/kenSheet2.png")] public static const ryuSheetImg:Class;
 		
@@ -37,7 +40,7 @@ package
 		
 		[Embed(source = "/sprites/pocketfighter-BG1.gif")] public static const Background:Class;
 		
-		[Embed(source = "/sprites/stage end[SFX].mp3")]  public static const StageEnd:Class;
+		[Embed(source = "/audio/stage end[SFX].mp3")]  public static const StageEnd:Class;
 		
 		private static var m_starfieldBackground:FlxGroup = null;
 		public static function get starfieldBackground():FlxGroup

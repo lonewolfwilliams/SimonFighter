@@ -2,14 +2,10 @@ package states
 {
 	import com.greensock.easing.Bounce;
 	import com.greensock.easing.Linear;
-	import com.greensock.easing.Quad;
-	import com.greensock.motionPaths.RectanglePath2D;
 	import com.greensock.TweenMax;
 	import flash.utils.Dictionary;
-	import org.flixel.FlxCamera;
 	import org.flixel.FlxG;
 	import org.flixel.FlxGroup;
-	import org.flixel.FlxObject;
 	import org.flixel.FlxPoint;
 	import org.flixel.FlxRect;
 	import org.flixel.FlxSprite;
@@ -33,23 +29,24 @@ package states
 	 */
 	public class GameState extends FlxState
 	{
-		public static var whosTurn:String;
+		private var m_whosTurn:String;
 		
-		public static var LEFTS_TURN:String = "Left Players Turn";
-		public static var RIGHTS_TURN:String = "Right Players Turn";
-		public static var SEQUENCE_EXTENSION:String = "Next direction in the sequence";
-		private static var ATTACK_TEXT:String = "Repeat the {num} directions in the sequence";
-		private static var SEQUENCE_TUTORIAL:String = "In this game players take it in turns to repeat an ever growing sequence of directions.\nOn the following screen you will be shown the {num} direction added to the sequence"
-		private static var ATTACK_TUTORIAL:String = "It is now the {player} turn to repeat the direction in the sequence"
+		public static const LEFTS_TURN:String = "Left Players Turn";
+		public static const RIGHTS_TURN:String = "Right Players Turn";
+		public static const SEQUENCE_EXTENSION:String = "{player} Direction Added GET READY!";
+		
+		private static var ATTACK_TEXT:String = "Go!";
+		private static var SEQUENCE_TUTORIAL:String = "Player keys:";
+		private static var ATTACK_TUTORIAL:String = "Now the {player} must remember the direction from the first round and the new direction added";
 		private static var POST_ATTACK_TUTORIAL_SUCCESS:String = "{player} entry was correct, so they scored a hit on the other player";
 		private static var POST_ATTACK_TUTORIAL_FAILURE:String = "{player} entry was incorrect, so the other player blocked their attack";
-		private static var END_OF_TUTORIAL:String = "That's the end of the tutorial\nRemember: The next screen will show the second direction added to the sequence\n...so...uhm...\nRound one...Fight!"
+		private static var END_OF_TUTORIAL:String = "Next round another direction will be added to the sequence";
 		
-		public static var HIGH_KICK:uint = 87;//these are the corresponding flash keycodes, but that is really arbitrary.
-		public static var LOW_KICK:uint = 68;
-		public static var HIGH_PUNCH:uint = 65;
-		public static var LOW_PUNCH:uint = 69;//dudes :P
-		//private static var TOTAL_POINTS:uint = 10;
+		public static const TEXT_COLOUR:uint = 0xFFFFFFFF;
+		public static const HIGH_KICK:uint = 87;//these are the corresponding flash keycodes, but that is really arbitrary.
+		public static const LOW_KICK:uint = 68;
+		public static const HIGH_PUNCH:uint = 65;
+		public static const LOW_PUNCH:uint = 69;//dudes :P
 		
 		private var m_sequenceExtensionTextDuration:int = 3;
 		private var m_playerAttackTextDuration:int = 3;
@@ -66,31 +63,33 @@ package states
 		//later on it would be nice if you could choose a player so we keep these reference names generic
 		private var m_leftPlayer:Player;
 		private var m_rightPlayer:Player;
-		//private var shadow:PlayerShadow;
 		private var m_leftPlayerHealthBar:FlxBar;
 		private var m_rightPlayerHealthBar:FlxBar;
 		
 		private var m_playerReferences:Dictionary = new Dictionary(true);
 		private var m_playerMovementInPixels:int;
 		
+		private var m_leftPlayerKeyGraphic:FlxSprite;
+		private var m_rightPlayerKeyGraphic:FlxSprite;
 		private var m_onscreenMessage:Message;
 		private var m_backgroundGraphic:FlxSprite;
 		private var m_background:FlxGroup = new FlxGroup();
 		private var m_midField:FlxGroup = new FlxGroup();
 		private var m_foreGround:FlxGroup = new FlxGroup();
 		
-		internal var m_flagKeyBlock:Boolean = false;
+		internal var m_flagKeyBlock:Keyblock = new Keyblock();
 		internal var m_sandbox:Dictionary = new Dictionary(false);
 		
 		override public function create():void 
 		{
 			FlxG.resetCameras(new LazyCamera(0, 0, FlxG.width, FlxG.height, 0));
 			
-			m_healthDecrement = CONFIG::debug == true ? 50 : 10;
+			m_healthDecrement = CONFIG::debug == true ? 50 : 5; //max sequeunce length 20 ?
 			m_playerMovementInPixels = 32;// / TOTAL_POINTS;
-			whosTurn = Math.random() > 0.5 ? LEFTS_TURN : RIGHTS_TURN;
-			m_previousTurn = whosTurn == LEFTS_TURN ? RIGHTS_TURN : LEFTS_TURN;
+			m_whosTurn = Math.random() > 0.5 ? LEFTS_TURN : RIGHTS_TURN;
+			m_previousTurn = m_whosTurn == LEFTS_TURN ? RIGHTS_TURN : LEFTS_TURN;
 			//init game objects into groups
+			initControlDisplay();
 			initArrowDisplay();
 			initBackground();
 			initPlayers();
@@ -129,6 +128,21 @@ package states
 		
 //initialisers-------------------------------------------------------------------------------------
 
+		
+		private function initControlDisplay():void 
+		{
+			m_rightPlayerKeyGraphic = new FlxSprite(0, 0, Registry.WASD);
+			m_rightPlayerKeyGraphic.scrollFactor = new FlxPoint(0, 0);
+			m_rightPlayerKeyGraphic.y = FlxG.camera.height * 0.32;
+			m_rightPlayerKeyGraphic.x = 25;
+			m_midField.add(m_rightPlayerKeyGraphic);
+			
+			m_leftPlayerKeyGraphic = new FlxSprite(0, 0, Registry.UDLR);
+			m_leftPlayerKeyGraphic.scrollFactor = new FlxPoint(0, 0);
+			m_leftPlayerKeyGraphic.y = FlxG.camera.height * 0.32;
+			m_leftPlayerKeyGraphic.x = FlxG.camera.width - m_leftPlayerKeyGraphic.width - 25;
+			m_midField.add(m_leftPlayerKeyGraphic);
+		}
 		private function initArrowDisplay():void 
 		{
 			m_blankDisplay = new ArrowDisplay(FlxG.camera.width * 0.5, FlxG.camera.height * 0.5);
@@ -146,12 +160,13 @@ package states
 		private function initBackground():void 
 		{
 			m_backgroundGraphic = new FlxSprite(0, 0, Registry.Background);
-			FlxGradient.overlayGradientOnFlxSprite(m_backgroundGraphic, m_backgroundGraphic.width, m_backgroundGraphic.height * 0.5, [0x99000000, 0x99000000, 0x00000000], 0, m_backgroundGraphic.height - FlxG.camera.height);
+			FlxGradient.overlayGradientOnFlxSprite(m_backgroundGraphic, m_backgroundGraphic.width, m_backgroundGraphic.height * 0.5, 
+													[0xAA000000, 0xAA000000, 0x00], 0, 
+													m_backgroundGraphic.height - FlxG.camera.height);
 			m_background.add(m_backgroundGraphic);
 		}
 		private function initPlayers():void 
 		{
-			//shadow	= new PlayerShadow(150, 30);
 			m_leftPlayer = new Ken(m_backgroundGraphic.width * 0.5, m_backgroundGraphic.height - 82);
 			m_rightPlayer = new Ryu(m_backgroundGraphic.width * 0.5, m_backgroundGraphic.height - 82);
 			m_leftPlayer.addEventListener(AnimationEvent.PLAYER_HIT_ANIMATION, this.onPlayerHitAnimationTriggered);
@@ -200,11 +215,11 @@ package states
 		}
 		private function onFinalEntry(event:SimonEvent):void
 		{
-			m_flagKeyBlock = true;
+			m_flagKeyBlock.type = Keyblock.NON_CANCELLABLE;
 			
-			if (Player(m_playerReferences[whosTurn]).isPerformingActionSequence)
+			if (Player(m_playerReferences[m_whosTurn]).isPerformingActionSequence)
 			{
-				var forPlayer:IAnimationEventDispatcher = m_playerReferences[whosTurn]
+				var forPlayer:IAnimationEventDispatcher = m_playerReferences[m_whosTurn]
 				queueFunctionUntilAnimationCompleted(forPlayer, releaseKeyBlock);
 				queueFunctionUntilAnimationCompleted(forPlayer, clearArrows);
 				queueFunctionUntilAnimationCompleted(forPlayer, doHouseKeeping);
@@ -254,17 +269,13 @@ package states
 		//explains what will happen next...
 		private function doSequenceExtensionTutorialScene():void 
 		{
-			m_flagKeyBlock = true;
+			m_flagKeyBlock.type = Keyblock.CANCELLABLE;
 			
-			var insertCount:String;
-			if (m_simonEngine.sequenceLength == 0 && Registry.isFirstRun)
-			{
-				insertCount = "first";
-			}
+			displayText(SEQUENCE_TUTORIAL, TEXT_COLOUR, m_instructionTextDurationLong);
 			
-			var instructions:String = SEQUENCE_TUTORIAL.replace("{num}", insertCount);
-			displayText(instructions, 0xFFFFFFFF, m_instructionTextDurationLong);
+			showPlayerControls();
 			
+			queueFunctionUntilAnimationCompleted(m_onscreenMessage, hidePlayerControls);
 			queueFunctionUntilAnimationCompleted(m_onscreenMessage, releaseKeyBlock);
 			queueFunctionUntilAnimationCompleted(m_onscreenMessage, clearArrows);
 			queueFunctionUntilAnimationCompleted(m_onscreenMessage, doSequenceExtensionScene);
@@ -274,8 +285,20 @@ package states
 		private function doSequenceExtensionScene():void
 		{
 			//FlxG.bgColor = 0xFF333333;
-			m_flagKeyBlock = true; //attack scene needs to pause the game while the player reads the text
-			displayText(SEQUENCE_EXTENSION, 0xFFFFFFFF, m_sequenceExtensionTextDuration);
+			m_flagKeyBlock.type = Keyblock.NON_CANCELLABLE; //this causes confusion if the player can skip - they accidentally enter their first attack
+			
+			var insertplayer:String;
+			if (m_previousTurn == LEFTS_TURN)
+			{
+				insertplayer = "Left Player:";
+			}
+			else if (m_previousTurn == RIGHTS_TURN)
+			{
+				insertplayer = "Right Player:";
+			}
+			var playerTextColour:uint = 0xFF000000 | Player(m_playerReferences[m_previousTurn]).colour;
+			displayText(SEQUENCE_EXTENSION.replace("{player}", insertplayer), 
+						playerTextColour, m_sequenceExtensionTextDuration);
 			
 			var randomArrow:int = Math.floor(Math.random() * 3);
 			switch (randomArrow) 
@@ -301,7 +324,7 @@ package states
 			}
 			
 			var nextScene:Function = doAttackScene;
-			if (m_simonEngine.sequenceLength == 1 && Registry.isFirstRun)
+			if (m_simonEngine.sequenceLength == 2 && Registry.isFirstRun)
 			{
 				nextScene = doAttackTutorialScene;
 			}
@@ -314,19 +337,19 @@ package states
 		//explains what will happen in the attack tutorial section
 		private function doAttackTutorialScene():void 
 		{
-			m_flagKeyBlock = true;
+			m_flagKeyBlock.type = Keyblock.CANCELLABLE;
 			
 			var insertplayer:String;
-			if (whosTurn == LEFTS_TURN)
+			if (m_whosTurn == LEFTS_TURN)
 			{
-				insertplayer = "left player's";
+				insertplayer = "Left player";
 			}
-			else if (whosTurn == RIGHTS_TURN)
+			else if (m_whosTurn == RIGHTS_TURN)
 			{
-				insertplayer = "right player's";
+				insertplayer = "Right player";
 			}
 			
-			displayText(ATTACK_TUTORIAL.replace("{player}", insertplayer), 0xFFFFFF, m_instructionTextDurationShort);
+			displayText(ATTACK_TUTORIAL.replace("{player}", insertplayer), TEXT_COLOUR, m_instructionTextDurationShort);
 				
 			queueFunctionUntilAnimationCompleted(m_onscreenMessage, releaseKeyBlock);
 			queueFunctionUntilAnimationCompleted(m_onscreenMessage, doAttackScene);
@@ -335,9 +358,11 @@ package states
 		
 		private function doAttackScene():void
 		{
-			bringPlayerToFront(Player(m_playerReferences[whosTurn]));
-			var attackTextWithCount:String = ATTACK_TEXT.replace("{num}", m_simonEngine.sequenceLength);
-			displayText(whosTurn + ": " + attackTextWithCount, 0xFFFFFFFF, m_playerAttackTextDuration);
+			bringPlayerToFront(Player(m_playerReferences[m_whosTurn]));
+			var playerTextColour:uint = 0xFF000000 | Player(m_playerReferences[m_whosTurn]).colour;
+			displayText(ATTACK_TEXT, 
+						playerTextColour, 
+						m_playerAttackTextDuration);
 			
 			displayArrowPlaceholders();
 			//events from simon engine drive next section of gameplay
@@ -345,17 +370,17 @@ package states
 		
 		private function doPostAttackTutorialScene():void
 		{
-			m_flagKeyBlock = true;
+			m_flagKeyBlock.type = Keyblock.CANCELLABLE;
 			
-			var attacker:IPlayer = m_playerReferences[whosTurn];
+			var attacker:IPlayer = m_playerReferences[m_whosTurn];
 			var defender:IPlayer = m_playerReferences[m_previousTurn];
 			
 			var insertPlayer:String;
-			if (whosTurn == LEFTS_TURN)
+			if (m_whosTurn == LEFTS_TURN)
 			{
 				insertPlayer = "left Player's";
 			}
-			else if (whosTurn == RIGHTS_TURN)
+			else if (m_whosTurn == RIGHTS_TURN)
 			{
 				insertPlayer = "right player's";
 			}
@@ -377,7 +402,7 @@ package states
 		}
 		private function doEndTutorialScene():void 
 		{
-			m_flagKeyBlock = true;
+			m_flagKeyBlock.type = Keyblock.CANCELLABLE;
 			displayText(END_OF_TUTORIAL, 0xFFFFFF, m_instructionTextDurationShort);
 			
 			queueFunctionUntilAnimationCompleted(m_onscreenMessage, releaseKeyBlock);
@@ -444,32 +469,63 @@ package states
 
 		private function doPlayerInput():void
 		{
-			if (m_flagKeyBlock)
+			if (m_flagKeyBlock.type == Keyblock.NON_CANCELLABLE)
 			{
 				return;
 			}
 			
-			if (FlxG.keys.justReleased("UP"))//moves should be mutually exclusive 
+			if (m_flagKeyBlock.type == Keyblock.CANCELLABLE)
 			{
-				m_simonEngine.inputAction(GameState.HIGH_KICK);
+				if (FlxG.keys.any() && m_onscreenMessage != null)
+				{
+					m_onscreenMessage.cancel();
+				}
+				return;
 			}
-			else if (FlxG.keys.justReleased("DOWN"))
+			
+			if (m_whosTurn == RIGHTS_TURN)
 			{
-				m_simonEngine.inputAction(GameState.LOW_KICK);
+				if (FlxG.keys.justReleased("UP"))//moves should be mutually exclusive 
+				{
+					m_simonEngine.inputAction(GameState.HIGH_KICK);
+				}
+				else if (FlxG.keys.justReleased("DOWN"))
+				{
+					m_simonEngine.inputAction(GameState.LOW_KICK);
+				}
+				else if (FlxG.keys.justReleased("LEFT"))
+				{	
+					m_simonEngine.inputAction(GameState.HIGH_PUNCH);
+				}
+				else if (FlxG.keys.justReleased("RIGHT"))
+				{	
+					m_simonEngine.inputAction(GameState.LOW_PUNCH);
+				}
 			}
-			else if (FlxG.keys.justReleased("LEFT"))
-			{	
-				m_simonEngine.inputAction(GameState.HIGH_PUNCH);
-			}
-			else if (FlxG.keys.justReleased("RIGHT"))
-			{	
-				m_simonEngine.inputAction(GameState.LOW_PUNCH);
+			else if (m_whosTurn == LEFTS_TURN)
+			{
+				if (FlxG.keys.justReleased("W"))//moves should be mutually exclusive 
+				{
+					m_simonEngine.inputAction(GameState.HIGH_KICK);
+				}
+				else if (FlxG.keys.justReleased("S"))
+				{
+					m_simonEngine.inputAction(GameState.LOW_KICK);
+				}
+				else if (FlxG.keys.justReleased("A"))
+				{	
+					m_simonEngine.inputAction(GameState.HIGH_PUNCH);
+				}
+				else if (FlxG.keys.justReleased("D"))
+				{	
+					m_simonEngine.inputAction(GameState.LOW_PUNCH);
+				}
 			}
 		}
 		private function doHitAnimation(keycode:uint):void
 		{
 			//cast as interface for methods
-			var attacker:IPlayer = m_playerReferences[whosTurn];
+			var attacker:IPlayer = m_playerReferences[m_whosTurn];
 			var defender:IPlayer = m_playerReferences[m_previousTurn];
 			
 			switch(keycode)
@@ -495,7 +551,7 @@ package states
 		private function doDefenseAnimation(keycode:uint):void
 		{
 			//cast as interface for methods
-			var attacker:IPlayer = m_playerReferences[whosTurn];
+			var attacker:IPlayer = m_playerReferences[m_whosTurn];
 			var defender:IPlayer = m_playerReferences[m_previousTurn];
 			
 			switch(keycode)
@@ -580,7 +636,7 @@ package states
 		}
 		private function updatePositions():void
 		{
-			var attacker:Player = m_playerReferences[whosTurn];
+			var attacker:Player = m_playerReferences[m_whosTurn];
 			var defender:Player = m_playerReferences[m_previousTurn];
 			
 			if (attacker == m_leftPlayer && m_rightPlayer.x < (m_backgroundGraphic.width - 32) )
@@ -601,17 +657,17 @@ package states
 		}
 		private function switchTurns():void
 		{
-			m_previousTurn = whosTurn;
-			if (whosTurn == LEFTS_TURN)
+			m_previousTurn = m_whosTurn;
+			if (m_whosTurn == LEFTS_TURN)
 			{
-				whosTurn = RIGHTS_TURN;
+				m_whosTurn = RIGHTS_TURN;
 			}
 			else
 			{
-				whosTurn = LEFTS_TURN;
+				m_whosTurn = LEFTS_TURN;
 			}
 			
-			FlxG.camera.follow(m_playerReferences[whosTurn] as Player);
+			FlxG.camera.follow(m_playerReferences[m_whosTurn] as Player);
 		}
 		private function clearArrows():void
 		{
@@ -620,7 +676,7 @@ package states
 		}
 		private function releaseKeyBlock():void 
 		{
-			m_flagKeyBlock = false;
+			m_flagKeyBlock.type = Keyblock.NONE;
 		}
 		private function bringPlayerToFront(playerToFront:Player):void 
 		{
@@ -629,9 +685,20 @@ package states
 				m_foreGround.members.reverse();
 			}
 		}
+		private function showPlayerControls():void 
+		{
+			m_leftPlayerKeyGraphic.visible = true;
+			m_rightPlayerKeyGraphic.visible = true;
+		}
+		private function hidePlayerControls():void 
+		{
+			m_leftPlayerKeyGraphic.visible = false;
+			m_rightPlayerKeyGraphic.visible = false;
+		}
 		private function gotoGameOverState():void 
 		{
-			var winnerIsLeftPlayer:Boolean = (m_playerReferences[whosTurn] == m_leftPlayer);
+			Registry.isFirstRun = false;
+			var winnerIsLeftPlayer:Boolean = (m_whosTurn == LEFTS_TURN)
 			new DelayedCallback(FlxG, 2, FlxG.switchState, new WinnerState(winnerIsLeftPlayer));
 		}
 		private function listenForAnimationComplete(to:IAnimationEventDispatcher):void
@@ -674,4 +741,12 @@ internal class QueuedMethod
 		this.method = method;
 		this.params = params;
 	}
+}
+internal class Keyblock
+{
+	public static const NONE:int = 0;
+	public static const CANCELLABLE:int = 1;
+	public static const NON_CANCELLABLE:int = 2;
+	
+	public var type:int = NONE;
 }

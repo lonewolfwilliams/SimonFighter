@@ -99,6 +99,9 @@
     <hidden path="src\sprites\ko [SFX].mp3" />
     <hidden path="src\sprites\kenPortrait.gif" />
     <hidden path="src\sprites\kenPortrait2.gif" />
+    <hidden path="src\sprites\KenPocket.png" />
+    <hidden path="src\sprites\pocketfighter-BG1.gif" />
+    <hidden path="src\sprites\stage end[SFX].mp3" />
   </hiddenPaths>
   <!-- Executed before build -->
   <preBuildCommand />
