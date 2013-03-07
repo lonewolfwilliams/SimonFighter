@@ -14,7 +14,7 @@ package sprites
 		{
 			super(0xC500E0, X, Y, SimpleGraphic);
 			
-			loadGraphic(Registry.ryuSheetImg, true, true, 117, 75);
+			loadGraphic(Registry.kenSheetImg, true, true, 117, 75);
 			addAnimation("idle", [0, 1, 2, 3, 4, 5], 5 * fpsMultiplier, true);//row 1
 			addAnimation("highPunch", [13, 14, 15, 16, 17, 18, 19], 7 * fpsMultiplier, false);//row2
 			addAnimation("highKick", [26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38], 13 * fpsMultiplier, false);
@@ -25,6 +25,7 @@ package sprites
 			addAnimation("highHit", [91], 1 * fpsMultiplier, false);
 			addAnimation("fall", [92], 1 * fpsMultiplier, false);
 			addAnimation("KO", [93], 1 * fpsMultiplier, false);
+			addAnimation("taunt", [104, 105, 106, 107, 108, 109, 109, 109, 109, 109], 5 * fpsMultiplier, false); //row 9
 			
 			//modify bounding box
 			width = 62;
@@ -43,19 +44,15 @@ package sprites
 					
 				break;
 				case "highPunch":
-					//FlxG.play(red);
 					FlxG.play(Registry.punch);
 				break;
 				case "highKick":
-					//FlxG.play(blue);
 					FlxG.play(Registry.kick);
 				break;
 				case "lowKick":
-					//FlxG.play(yellow);
 					FlxG.play(Registry.sweep);
 				break;
 				case "lowPunch":
-					//FlxG.play(green);
 					FlxG.play(Registry.punch);
 				break;
 				case "highBlock":
@@ -100,6 +97,10 @@ package sprites
 		public function lowInjury():void
 		{
 			play("highHit", true);
+		}
+		public function taunt():void 
+		{
+			play("taunt", true);
 		}
 		public function youGotKnockedTheFuckOut():void 
 		{

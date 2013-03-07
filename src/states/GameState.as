@@ -208,7 +208,8 @@ package states
 			displayArrow(action, Arrow.REGULAR);
 			
 			//todo: this needs to be a taunt...
-			doDefenseAnimation(action);
+			doTauntAnimation();
+			//doDefenseAnimation(action);
 		}
 		private function onEntryCorrect(event:SimonEvent):void
 		{
@@ -226,18 +227,25 @@ package states
 		{
 			m_flagKeyBlock.type = Keyblock.NON_CANCELLABLE;
 			
+			var waitingOnPlayer:IAnimationEventDispatcher = null;
 			if (Player(m_playerReferences[m_whosTurn]).isPerformingActionSequence)
 			{
-				var forPlayer:IAnimationEventDispatcher = m_playerReferences[m_whosTurn]
-				queueFunctionUntilAnimationCompleted(forPlayer, releaseKeyBlock);
-				queueFunctionUntilAnimationCompleted(forPlayer, clearArrows);
-				queueFunctionUntilAnimationCompleted(forPlayer, doHouseKeeping);
-				listenForAnimationComplete(forPlayer);
+				waitingOnPlayer = m_playerReferences[m_whosTurn]
 			}
-			else
+			else if (Player(m_playerReferences[m_previousTurn]).isPerformingActionSequence)
 			{
-				doHouseKeeping();
+				waitingOnPlayer = m_playerReferences[m_previousTurn]
 			}
+			if (waitingOnPlayer != null)
+			{
+				queueFunctionUntilAnimationCompleted(waitingOnPlayer, releaseKeyBlock);
+				queueFunctionUntilAnimationCompleted(waitingOnPlayer, clearArrows);
+				queueFunctionUntilAnimationCompleted(waitingOnPlayer, doHouseKeeping);
+				listenForAnimationComplete(waitingOnPlayer);
+				return;
+			}
+			
+			doHouseKeeping();
 		}
 		private function onPlayerHitAnimationTriggered(event:AnimationEvent):void
 		{
@@ -580,11 +588,8 @@ package states
 		}
 		private function doTauntAnimation():void
 		{
-			//cast as interface for methods
-			var attacker:IPlayer = m_playerReferences[m_whosTurn];
 			var defender:IPlayer = m_playerReferences[m_previousTurn];
-			
-			
+			defender.taunt();
 		}
 		private function doDefenseAnimation(keycode:uint):void
 		{

@@ -7,6 +7,7 @@ package sprites
 	 */
 	public interface IPlayer //to enable delegate functionality
 	{
+		function taunt():void;
 		//attacks
 		function highPunch():void;
 		function highKick():void;

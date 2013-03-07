@@ -8,7 +8,7 @@ package util
 	 */
 	public class DelayedCallback 
 	{
-		private var m_isDead = false;
+		private var m_isDead:Boolean = false;
 		public function get isDead():Boolean
 		{
 			return m_isDead;
