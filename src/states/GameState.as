@@ -29,8 +29,6 @@ package states
 	 */
 	public class GameState extends FlxState
 	{
-		private var m_whosTurn:String;
-		
 		public static const LEFTS_TURN:String = "Left Players Turn";
 		public static const RIGHTS_TURN:String = "Right Players Turn";
 		public static const SEQUENCE_EXTENSION:String = "{player} Direction Added GET READY!";
@@ -48,37 +46,39 @@ package states
 		public static const HIGH_PUNCH:uint = 65;
 		public static const LOW_PUNCH:uint = 69;//dudes :P
 		
-		private var m_sequenceExtensionTextDuration:int = 3;
-		private var m_playerAttackTextDuration:int = 3;
-		private var m_instructionTextDurationShort:int = 4;
-		private var m_instructionTextDurationLong:int = 8;
+		private var m_playerReferences:Dictionary = new Dictionary(true);
+		private var m_whosTurn:String;
+		private var m_previousTurn:String;
+		
 		private var m_healthDecrement:int;
+		private var m_playerMovementInPixels:int;
+		
+		private var m_sequenceExtensionTextDurationSecs:int = 3;
+		private var m_playerAttackTextDurationSecs:int = 3;
+		private var m_instructionTextDurationShortSecs:int = 4;
+		private var m_instructionTextDurationLongSecs:int = 8;
+		private var m_playerInputTimeoutSecs:int = 3;
 		
 		private var m_simonEngine:Simon = new Simon();
-		private var m_previousTurn:String;
 		
 		private var m_blankDisplay:ArrowDisplay;
 		private var m_arrowDisplay:ArrowDisplay;
-		
-		//later on it would be nice if you could choose a player so we keep these reference names generic
 		private var m_leftPlayer:Player;
 		private var m_rightPlayer:Player;
 		private var m_leftPlayerHealthBar:FlxBar;
 		private var m_rightPlayerHealthBar:FlxBar;
-		
-		private var m_playerReferences:Dictionary = new Dictionary(true);
-		private var m_playerMovementInPixels:int;
-		
+		private var m_onscreenMessage:Message;
 		private var m_leftPlayerKeyGraphic:FlxSprite;
 		private var m_rightPlayerKeyGraphic:FlxSprite;
-		private var m_onscreenMessage:Message;
 		private var m_backgroundGraphic:FlxSprite;
+		
 		private var m_background:FlxGroup = new FlxGroup();
 		private var m_midField:FlxGroup = new FlxGroup();
 		private var m_foreGround:FlxGroup = new FlxGroup();
 		
 		internal var m_flagKeyBlock:Keyblock = new Keyblock();
 		internal var m_sandbox:Dictionary = new Dictionary(false);
+		internal var m_playerTimeout:DelayedCallback = null;
 		
 		override public function create():void 
 		{
@@ -201,6 +201,15 @@ package states
 
 //handlers---------------------------------------------------------------------------------------------------
 		
+		//player left the sequence for too long - they have probably forgotten the entry, so show it and move on...
+		private function onEntrySkipped(event:SimonEvent):void 
+		{
+			var action:uint = event.inputKeycode;
+			displayArrow(action, Arrow.REGULAR);
+			
+			//todo: this needs to be a taunt...
+			doDefenseAnimation(action);
+		}
 		private function onEntryCorrect(event:SimonEvent):void
 		{
 			var action:uint = event.inputKeycode;
@@ -271,7 +280,7 @@ package states
 		{
 			m_flagKeyBlock.type = Keyblock.CANCELLABLE;
 			
-			displayText(SEQUENCE_TUTORIAL, TEXT_COLOUR, m_instructionTextDurationLong);
+			displayText(SEQUENCE_TUTORIAL, TEXT_COLOUR, m_instructionTextDurationLongSecs);
 			
 			showPlayerControls();
 			
@@ -284,7 +293,7 @@ package states
 		//computer picks a new random arrow for the sequence
 		private function doSequenceExtensionScene():void
 		{
-			//FlxG.bgColor = 0xFF333333;
+			m_flagKeyBlock.type = Keyblock.NON_CANCELLABLE; //this causes confusion if the player can skip - they accidentally enter their first attack
 			m_flagKeyBlock.type = Keyblock.NON_CANCELLABLE; //this causes confusion if the player can skip - they accidentally enter their first attack
 			
 			var insertplayer:String;
@@ -298,7 +307,7 @@ package states
 			}
 			var playerTextColour:uint = 0xFF000000 | Player(m_playerReferences[m_previousTurn]).colour;
 			displayText(SEQUENCE_EXTENSION.replace("{player}", insertplayer), 
-						playerTextColour, m_sequenceExtensionTextDuration);
+						playerTextColour, m_sequenceExtensionTextDurationSecs);
 			
 			var randomArrow:int = Math.floor(Math.random() * 3);
 			switch (randomArrow) 
@@ -349,7 +358,7 @@ package states
 				insertplayer = "Right player";
 			}
 			
-			displayText(ATTACK_TUTORIAL.replace("{player}", insertplayer), TEXT_COLOUR, m_instructionTextDurationShort);
+			displayText(ATTACK_TUTORIAL.replace("{player}", insertplayer), TEXT_COLOUR, m_instructionTextDurationShortSecs);
 				
 			queueFunctionUntilAnimationCompleted(m_onscreenMessage, releaseKeyBlock);
 			queueFunctionUntilAnimationCompleted(m_onscreenMessage, doAttackScene);
@@ -362,10 +371,15 @@ package states
 			var playerTextColour:uint = 0xFF000000 | Player(m_playerReferences[m_whosTurn]).colour;
 			displayText(ATTACK_TEXT, 
 						playerTextColour, 
-						m_playerAttackTextDuration);
+						m_playerAttackTextDurationSecs);
 			
 			displayArrowPlaceholders();
+			
 			//events from simon engine drive next section of gameplay
+			
+			m_playerTimeout = new DelayedCallback(m_simonEngine, 
+								m_playerInputTimeoutSecs, 
+								m_simonEngine.SkipCurrentEntry);
 		}
 		
 		private function doPostAttackTutorialScene():void
@@ -395,7 +409,7 @@ package states
 				feedback = POST_ATTACK_TUTORIAL_FAILURE.replace("{player}", insertPlayer);
 			}
 			
-			displayText(feedback, 0xFFFFFF, m_instructionTextDurationShort);
+			displayText(feedback, 0xFFFFFF, m_instructionTextDurationShortSecs);
 			
 			queueFunctionUntilAnimationCompleted(m_onscreenMessage, doEndTutorialScene);
 			listenForAnimationComplete(m_onscreenMessage);
@@ -403,7 +417,7 @@ package states
 		private function doEndTutorialScene():void 
 		{
 			m_flagKeyBlock.type = Keyblock.CANCELLABLE;
-			displayText(END_OF_TUTORIAL, 0xFFFFFF, m_instructionTextDurationShort);
+			displayText(END_OF_TUTORIAL, 0xFFFFFF, m_instructionTextDurationShortSecs);
 			
 			queueFunctionUntilAnimationCompleted(m_onscreenMessage, releaseKeyBlock);
 			queueFunctionUntilAnimationCompleted(m_onscreenMessage, doSequenceExtensionScene);
@@ -488,18 +502,22 @@ package states
 				if (FlxG.keys.justReleased("UP"))//moves should be mutually exclusive 
 				{
 					m_simonEngine.inputAction(GameState.HIGH_KICK);
+					CancelPlayerTimeout();
 				}
 				else if (FlxG.keys.justReleased("DOWN"))
 				{
 					m_simonEngine.inputAction(GameState.LOW_KICK);
+					CancelPlayerTimeout();
 				}
 				else if (FlxG.keys.justReleased("LEFT"))
 				{	
 					m_simonEngine.inputAction(GameState.HIGH_PUNCH);
+					CancelPlayerTimeout();
 				}
 				else if (FlxG.keys.justReleased("RIGHT"))
 				{	
 					m_simonEngine.inputAction(GameState.LOW_PUNCH);
+					CancelPlayerTimeout();
 				}
 			}
 			else if (m_whosTurn == LEFTS_TURN)
@@ -507,20 +525,32 @@ package states
 				if (FlxG.keys.justReleased("W"))//moves should be mutually exclusive 
 				{
 					m_simonEngine.inputAction(GameState.HIGH_KICK);
+					CancelPlayerTimeout();
 				}
 				else if (FlxG.keys.justReleased("S"))
 				{
 					m_simonEngine.inputAction(GameState.LOW_KICK);
+					CancelPlayerTimeout();
 				}
 				else if (FlxG.keys.justReleased("A"))
 				{	
 					m_simonEngine.inputAction(GameState.HIGH_PUNCH);
+					CancelPlayerTimeout();
 				}
 				else if (FlxG.keys.justReleased("D"))
 				{	
 					m_simonEngine.inputAction(GameState.LOW_PUNCH);
+					CancelPlayerTimeout();
 				}
 			}
+			
+			if (m_playerTimeout == null ||
+				m_playerTimeout.isDead)
+				{
+					m_playerTimeout = new DelayedCallback(	m_simonEngine, 
+															m_playerInputTimeoutSecs, 
+															m_simonEngine.SkipCurrentEntry );
+				}
 		}
 		private function doHitAnimation(keycode:uint):void
 		{
@@ -547,6 +577,14 @@ package states
 					defender.lowInjury();
 				break;
 			}
+		}
+		private function doTauntAnimation():void
+		{
+			//cast as interface for methods
+			var attacker:IPlayer = m_playerReferences[m_whosTurn];
+			var defender:IPlayer = m_playerReferences[m_previousTurn];
+			
+			
 		}
 		private function doDefenseAnimation(keycode:uint):void
 		{
@@ -722,6 +760,7 @@ package states
 			m_simonEngine.addEventListener(SimonEvent.ENTRY_INCORRECT, this.onEntryIncorrect);
 			m_simonEngine.addEventListener(SimonEvent.FINAL_ENTRY, this.onFinalEntry);
 			m_simonEngine.addEventListener(SimonEvent.SEQUENCE_ENDED, this.onSequenceEnded);
+			m_simonEngine.addEventListener(SimonEvent.ENTRY_SKIPPED, this.onEntrySkipped);
 		}
 		private function removeSimonListeners():void
 		{
@@ -729,6 +768,16 @@ package states
 			m_simonEngine.removeEventListener(SimonEvent.ENTRY_INCORRECT, this.onEntryIncorrect);
 			m_simonEngine.removeEventListener(SimonEvent.FINAL_ENTRY, this.onFinalEntry);
 			m_simonEngine.removeEventListener(SimonEvent.SEQUENCE_ENDED, this.onSequenceEnded);
+			m_simonEngine.removeEventListener(SimonEvent.ENTRY_SKIPPED, this.onEntrySkipped);
+		}
+		
+		private function CancelPlayerTimeout():void 
+		{
+			if (m_playerTimeout != null && 
+				false == m_playerTimeout.isDead)
+			{
+				m_playerTimeout.Cancel();
+			}
 		}
 	}
 }

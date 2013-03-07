@@ -1,6 +1,8 @@
 package simon
 {
 	import flash.events.EventDispatcher;
+	import flash.events.TimerEvent;
+	import flash.utils.Timer;
 	/**
 	 * ...
 	 * @author Gareth Williams
@@ -9,10 +11,7 @@ package simon
 	{
 		private var sequence:Array = new Array();
 		private var currentIndex:int = 0;
-		public function Simon() 
-		{
-			//default...	
-		}
+		
 		public function destructor():void
 		{
 			resetSequence();
@@ -21,7 +20,6 @@ package simon
 		public function inputAction(keyCode:uint):void
 		{
 			//trace("input action:", keyCode);
-			var isStartOfSequence:Boolean = Boolean(currentIndex == 0);
 			var isEndOfSequence:Boolean = Boolean(currentIndex >= sequence.length);
 			if (isEndOfSequence)
 			{
@@ -29,25 +27,34 @@ package simon
 				addActionToSequence(keyCode)
 				dispatchEvent(new SimonEvent(SimonEvent.SEQUENCE_ENDED, keyCode));//end of turn
 				currentIndex = 0;
+				return;
 			}
-			else
+			
+			//trace("testing against sequence");
+			var isCorrectCharacter:Boolean = checkActionAgainstSequence(keyCode);
+			if (isCorrectCharacter)
 			{
-				//trace("testing against sequence");
-				var isCorrectCharacter:Boolean = checkActionAgainstSequence(keyCode);
-				if (isCorrectCharacter)
-				{
-					dispatchEvent(new SimonEvent(SimonEvent.ENTRY_CORRECT, keyCode));
-				}
-				else 
-				{
-					dispatchEvent(new SimonEvent(SimonEvent.ENTRY_INCORRECT, keyCode));
-				}
-				
-				if (++currentIndex == sequenceLength) 
-				{
-					dispatchEvent(new SimonEvent(SimonEvent.FINAL_ENTRY));
-				}
+				dispatchEvent(new SimonEvent(SimonEvent.ENTRY_CORRECT, keyCode));
 			}
+			else if (false == isCorrectCharacter)
+			{
+				dispatchEvent(new SimonEvent(SimonEvent.ENTRY_INCORRECT, keyCode));
+			}
+			
+			IncrementSequence();
+		}
+		public function SkipCurrentEntry():void
+		{
+			var isEndOfSequence:Boolean = Boolean(currentIndex >= sequence.length);
+			if (isEndOfSequence)
+			{
+				return;
+			}
+			
+			var keyCode:uint = sequence[currentIndex];
+			dispatchEvent(new SimonEvent(SimonEvent.ENTRY_SKIPPED, keyCode));
+			
+			IncrementSequence();
 		}
 		public function resetSequence():void
 		{
@@ -66,6 +73,7 @@ package simon
 		{
 			return sequence[currentIndex];
 		}
+		
 		//helpers
 		private function checkActionAgainstSequence(keyCode:uint):Boolean
 		{
@@ -86,6 +94,13 @@ package simon
 			//trace("adding", keyCode, "to sequence");
 			sequence.push(keyCode);
 			//trace("\t", sequence);
+		}
+		private function IncrementSequence():void 
+		{
+			if (++currentIndex == sequenceLength) 
+			{
+				dispatchEvent(new SimonEvent(SimonEvent.FINAL_ENTRY));
+			}
 		}
 	}
 }
