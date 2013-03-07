@@ -323,6 +323,7 @@ package states
 					throw new Error(randomArrow + ": is out of range");
 			}
 			
+			
 			var nextScene:Function = doAttackScene;
 			if (m_simonEngine.sequenceLength == 2 && Registry.isFirstRun)
 			{
