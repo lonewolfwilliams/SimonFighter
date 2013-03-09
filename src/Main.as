@@ -14,7 +14,7 @@ package
 		
 		public function Main():void 
 		{
-			super(320,240,TitleState,2);
+			super(320,240, CONFIG::debug ? GameState : TitleState ,2);
 			FlxG.bgColor = 0xff333333;
 		}
 		

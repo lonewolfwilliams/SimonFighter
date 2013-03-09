@@ -36,11 +36,12 @@ package states
 		public static const SEQUENCE_EXTENSION:String = "{player} Direction Added GET READY!";
 		
 		private static var ATTACK_TEXT:String = "Go!";
+		private static var INTRODUCTION:String = "Welcome To Simon Fighter!\nIn this game players must repeat an ever growing sequence of directions";
 		private static var SEQUENCE_TUTORIAL:String = "Player keys:";
 		private static var ATTACK_TUTORIAL:String = "Now the {player} must remember the direction from the first round and the new direction added";
 		private static var POST_ATTACK_TUTORIAL_SUCCESS:String = "{player} entry was correct, so they scored a hit on the other player";
 		private static var POST_ATTACK_TUTORIAL_FAILURE:String = "{player} entry was incorrect, so the other player blocked their attack";
-		private static var END_OF_TUTORIAL:String = "Next round another direction will be added to the sequence";
+		private static var END_OF_TUTORIAL:String = "Next round their will be two directions in the sequence";
 		
 		public static const TEXT_COLOUR:uint = 0xFFFFFFFF;
 		public static const HIGH_KICK:uint = 87;//these are the corresponding flash keycodes, but that is really arbitrary.
@@ -105,9 +106,9 @@ package states
 			FlxG.camera.focusOn(m_leftPlayer.getMidpoint());
 			
 			//initialise game
-			if (Registry.isFirstRun)
+			if (Registry.showTutorial)
 			{
-				doSequenceExtensionTutorialScene();
+				doIntroductionTutorialScene();
 			}
 			else
 			{
@@ -142,6 +143,8 @@ package states
 			m_leftPlayerKeyGraphic.y = FlxG.camera.height * 0.32;
 			m_leftPlayerKeyGraphic.x = FlxG.camera.width - m_leftPlayerKeyGraphic.width - 25;
 			m_midField.add(m_leftPlayerKeyGraphic);
+			
+			hidePlayerControls();
 		}
 		private function initArrowDisplay():void 
 		{
@@ -265,7 +268,18 @@ package states
 		}
 		
 //scenes------------------------------------------------------------------------------------------------------
-
+		
+		private function doIntroductionTutorialScene():void 
+		{
+			m_flagKeyBlock.type = Keyblock.CANCELLABLE;
+			
+			displayText(INTRODUCTION, TEXT_COLOUR, m_instructionTextDurationLong);
+			
+			queueFunctionUntilAnimationCompleted(m_onscreenMessage, releaseKeyBlock);
+			queueFunctionUntilAnimationCompleted(m_onscreenMessage, doSequenceExtensionTutorialScene);
+			listenForAnimationComplete(m_onscreenMessage);
+		}
+		
 		//explains what will happen next...
 		private function doSequenceExtensionTutorialScene():void 
 		{
@@ -277,7 +291,6 @@ package states
 			
 			queueFunctionUntilAnimationCompleted(m_onscreenMessage, hidePlayerControls);
 			queueFunctionUntilAnimationCompleted(m_onscreenMessage, releaseKeyBlock);
-			queueFunctionUntilAnimationCompleted(m_onscreenMessage, clearArrows);
 			queueFunctionUntilAnimationCompleted(m_onscreenMessage, doSequenceExtensionScene);
 			listenForAnimationComplete(m_onscreenMessage);
 		}
@@ -304,19 +317,19 @@ package states
 			switch (randomArrow) 
 			{
 				case 0:
-					m_arrowDisplay.addArrow(Arrow.UP, Arrow.REGULAR);
+					m_arrowDisplay.addArrow(Arrow.UP, Arrow.REGULAR, 1);
 					m_simonEngine.inputAction(GameState.HIGH_KICK);
 				break;
 				case 1:
-					m_arrowDisplay.addArrow(Arrow.DOWN, Arrow.REGULAR);
+					m_arrowDisplay.addArrow(Arrow.DOWN, Arrow.REGULAR, 1);
 					m_simonEngine.inputAction(GameState.LOW_KICK);
 				break;
 				case 2:
-					m_arrowDisplay.addArrow(Arrow.LEFT, Arrow.REGULAR);
+					m_arrowDisplay.addArrow(Arrow.LEFT, Arrow.REGULAR, 1);
 					m_simonEngine.inputAction(GameState.HIGH_PUNCH);
 				break;
 				case 3:
-					m_arrowDisplay.addArrow(Arrow.RIGHT, Arrow.REGULAR);
+					m_arrowDisplay.addArrow(Arrow.RIGHT, Arrow.REGULAR, 1);
 					m_simonEngine.inputAction(GameState.LOW_PUNCH);
 				break;
 				default:
@@ -325,7 +338,7 @@ package states
 			
 			
 			var nextScene:Function = doAttackScene;
-			if (m_simonEngine.sequenceLength == 2 && Registry.isFirstRun)
+			if (m_simonEngine.sequenceLength == 2 && Registry.showTutorial)
 			{
 				nextScene = doAttackTutorialScene;
 			}
@@ -443,19 +456,19 @@ package states
 		{
 			var nextScene:Function = doSequenceExtensionScene;
 			
-			if (m_simonEngine.sequenceLength == 0 && Registry.isFirstRun)
+			if (m_simonEngine.sequenceLength == 0 && Registry.showTutorial)
 			{
 				nextScene = doSequenceExtensionTutorialScene;
 			}
 			
-			if (m_simonEngine.sequenceLength == 1 && Registry.isFirstRun)
+			if (m_simonEngine.sequenceLength == 1 && Registry.showTutorial)
 			{
 				nextScene = doPostAttackTutorialScene;
 			}
 			
-			if (m_simonEngine.sequenceLength == 2 && Registry.isFirstRun)
+			if (m_simonEngine.sequenceLength == 2 && Registry.showTutorial)
 			{
-				Registry.isFirstRun == false;
+				Registry.showTutorial == false;
 			}
 			
 			if (checkFatality())
@@ -610,7 +623,7 @@ package states
 		{
 			for (var i:int = 0; i<m_simonEngine.sequenceLength; i++)
 			{
-				m_blankDisplay.addArrow(0, Arrow.BLANK);
+				m_blankDisplay.addArrow(0, Arrow.BLANK,  m_simonEngine.sequenceLength);
 			}
 		}
 
@@ -698,7 +711,7 @@ package states
 		}
 		private function gotoGameOverState():void 
 		{
-			Registry.isFirstRun = false;
+			Registry.showTutorial = false;
 			var winnerIsLeftPlayer:Boolean = (m_whosTurn == LEFTS_TURN)
 			new DelayedCallback(FlxG, 2, FlxG.switchState, new WinnerState(winnerIsLeftPlayer));
 		}

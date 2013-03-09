@@ -13,11 +13,8 @@ package
 	 */
 	public class ArrowDisplay extends FlxObject
 	{
-		private const UNINITIALISED:int = -1;
-		
 		private var arrowLayer:FlxGroup = new FlxGroup();
 		private var onscreenArrows:Array = new Array();
-		private var sequenceLength:int = UNINITIALISED;
 		
 		public function ArrowDisplay(X:Number = 0, Y:Number = 0, Width:Number = 0, Height:Number = 0) 
 		{
@@ -32,16 +29,14 @@ package
 				current.destroy();
 			}
 		}
-		public function addArrow(pointing:int, state:String, sequenceLength:int = UNINITIALISED):void
+		public function addArrow(pointing:int, state:String, sequenceLength:int):void
 		{
-			this.sequenceLength = sequenceLength;
-			
 			var arrow:Arrow = new Arrow(this.x, this.y, pointing, state);
 			onscreenArrows.push(arrow);
 			arrowLayer.add(arrow);
 			
-			updateArrowPositions();
-			updateArrowScale();
+			updateArrowScale(sequenceLength);
+			updateArrowPositions(sequenceLength);
 		}
 		public function clearArrows():void
 		{
@@ -68,26 +63,21 @@ package
 			}
 		}
 		//helpers
-		private function updateArrowPositions():void
+		private function updateArrowPositions(sequenceLength:int):void
 		{
-			var totalWidth:Number;
-			if (sequenceLength == UNINITIALISED)
-			{
-				totalWidth = onscreenArrows.length * onscreenArrows[0].width;
-			}
-			else
-			{
-				totalWidth = sequenceLength * 32;
-			}
+			var arrowWidth:Number = (32 * onscreenArrows[0].scale.x);
+			var totalWidth:Number = sequenceLength * arrowWidth;
 			
 			var offsetX:Number = this.x - totalWidth * 0.5;
+			trace(sequenceLength);
+			
 			for (var a:int = 0; a < onscreenArrows.length; a++)
 			{
 				var current:Arrow = onscreenArrows[a];
-				current.x = offsetX + a * current.width;
+				current.x = offsetX + a * (32 * current.scale.x);
 			}
 		}
-		private function updateArrowScale():void
+		private function updateArrowScale(sequenceLength:int):void
 		{
 			var totalWidth:Number = sequenceLength * 32;
 			if (totalWidth > FlxG.width)
@@ -99,7 +89,7 @@ package
 					current.antialiasing = true;
 					current.scale = new FlxPoint(scaleTo, scaleTo);
 				}
-				updateArrowPositions();
+				//updateArrowPositions();
 			}
 		}
 	}

@@ -38,6 +38,7 @@ package states
 			initTitle(m_winnerIsLeftPlayer);
 			initBraggingText(m_winnerIsLeftPlayer);
 			
+			FlxG.music.stop();
 			FlxG.play(Registry.StageEnd);
 		}
 		

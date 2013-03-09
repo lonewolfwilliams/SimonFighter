@@ -13,6 +13,7 @@ package
 	 */
 	public class Registry 
 	{
+		[Embed(source = "/audio/street fighter dub skit.mp3")]  public static const Theme:Class;
 		[Embed(source = "/audio/Coin [SFX].mp3")] public static const Coin:Class;
 		
 		[Embed(source = "/sprites/logo.png")] public static const Logo:Class;
@@ -82,6 +83,6 @@ package
 		}
 		//use to turn off tutorial on subsequent play-throughs
 		
-		public static var isFirstRun:Boolean = CONFIG::debug == true ? false : true;
+		public static var showTutorial:Boolean = CONFIG::debug == true ? false : true;
 	}
 }

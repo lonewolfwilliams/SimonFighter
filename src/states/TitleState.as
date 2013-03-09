@@ -17,7 +17,6 @@ package states
 	 */
 	public class TitleState extends FlxState
 	{
-		
 		private var m_instructionText:FlxBitmapFont;
 		private var m_logo:FlxSprite;
 		private var m_background:FlxGroup;
@@ -29,6 +28,8 @@ package states
 			add(m_background);
 			initLogo();
 			initInstructionText();
+			
+			FlxG.playMusic(Registry.Theme, 1.0);
 		}
 		
 		override public function destroy():void
@@ -46,17 +47,35 @@ package states
 		
 		private function doPlayerInput():void 
 		{
-			if (FlxG.keys.any() && false == m_flagStartPressed)
+			if (false == FlxG.keys.justReleased("T") &&
+				false == FlxG.keys.justReleased("S"))
 			{
-				m_flagStartPressed = true;
-				
-				FlxG.play(Registry.Coin);
-				
-				TweenMax.to(m_instructionText, 0.2, { delay:0.4, 
-							startAt: { alpha:0 }, alpha:1, repeat:10, 
-							yoyo:true, onComplete:OnTweenComplete, 
-							onUpdate:OnTweenUpdate} );
+				return;
 			}
+			
+			if (m_flagStartPressed)
+			{
+				return;
+			}
+			
+			if (FlxG.keys.justReleased("T"))
+			{
+				Registry.showTutorial = true;
+			}
+			
+			if (FlxG.keys.justReleased("S"))
+			{
+				Registry.showTutorial = false;
+			}
+			
+			m_flagStartPressed = true;
+			
+			FlxG.play(Registry.Coin);
+			
+			TweenMax.to(m_instructionText, 0.2, { delay:0.4, 
+						startAt: { alpha:0 }, alpha:1, repeat:10, 
+						yoyo:true, onComplete:OnTweenComplete, 
+						onUpdate:OnTweenUpdate} );
 		}
 		
 		private function OnTweenComplete():void 
@@ -80,7 +99,7 @@ package states
 		{
 			m_instructionText = Registry.WorldWarriorBitmapFont;
 			m_instructionText.multiLine = true;
-			m_instructionText.text = "A GAME FOR TWO PLAYERS:\nPRESS ANY KEY TO START";
+			m_instructionText.text = "A GAME FOR TWO PLAYERS:\nS TO START T FOR TUTORIAL";
 			m_instructionText.y = FlxG.height * 0.8;
 			m_instructionText.x = (FlxG.width - m_instructionText.width) * 0.5
 			add(m_instructionText);
