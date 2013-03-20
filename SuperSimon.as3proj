@@ -16,8 +16,8 @@
   <!-- Other classes to be compiled into your SWF -->
   <classpaths>
     <class path="src" />
-    <class path="..\..\..\..\AdamAtomic-flixel-8989e50\AdamAtomic-flixel-8989e50" />
-    <class path="..\..\..\..\greensock-as3\greensock-as3" />
+    <class path="..\..\..\..\..\AdamAtomic-flixel-8989e50\AdamAtomic-flixel-8989e50" />
+    <class path="..\..\..\..\..\greensock-as3\greensock-as3" />
   </classpaths>
   <!-- Build options -->
   <build>

@@ -15,6 +15,7 @@ package states
 	import simon.SimonEvent;
 	import sprites.AnimationEvent;
 	import sprites.Arrow;
+	import sprites.Background;
 	import sprites.IAnimationEventDispatcher;
 	import sprites.IPlayer;
 	import sprites.Ken;
@@ -73,8 +74,7 @@ package states
 		private var m_leftPlayerKeyGraphic:FlxSprite;
 		private var m_rightPlayerKeyGraphic:FlxSprite;
 		private var m_onscreenMessage:Message;
-		private var m_backgroundGraphic:FlxSprite;
-		private var m_background:FlxGroup = new FlxGroup();
+		private var m_background:Background = new Background();
 		private var m_midField:FlxGroup = new FlxGroup();
 		private var m_foreGround:FlxGroup = new FlxGroup();
 		
@@ -92,7 +92,6 @@ package states
 			//init game objects into groups
 			initControlDisplay();
 			initArrowDisplay();
-			initBackground();
 			initPlayers();
 			
 			//game logic is driven by simon abstract.
@@ -102,7 +101,7 @@ package states
 			add(m_midField);
 			add(m_foreGround);
 			
-			FlxG.camera.bounds = new FlxRect(0, 0, m_backgroundGraphic.width, m_backgroundGraphic.height);
+			FlxG.camera.bounds = new FlxRect(0, 0, m_background.width, m_background.height);
 			FlxG.camera.focusOn(m_leftPlayer.getMidpoint());
 			
 			//initialise game
@@ -160,18 +159,10 @@ package states
 			
 			m_midField.add(m_arrowDisplay);
 		}
-		private function initBackground():void 
-		{
-			m_backgroundGraphic = new FlxSprite(0, 0, Registry.Background);
-			FlxGradient.overlayGradientOnFlxSprite(m_backgroundGraphic, m_backgroundGraphic.width, m_backgroundGraphic.height * 0.5, 
-													[0xAA000000, 0xAA000000, 0x00], 0, 
-													m_backgroundGraphic.height - FlxG.camera.height);
-			m_background.add(m_backgroundGraphic);
-		}
 		private function initPlayers():void 
 		{
-			m_leftPlayer = new Ken(m_backgroundGraphic.width * 0.5, m_backgroundGraphic.height - 82);
-			m_rightPlayer = new Ryu(m_backgroundGraphic.width * 0.5, m_backgroundGraphic.height - 82);
+			m_leftPlayer = new Ken(m_background.width * 0.5, m_background.height - 82);
+			m_rightPlayer = new Ryu(m_background.width * 0.5, m_background.height - 82);
 			m_leftPlayer.addEventListener(AnimationEvent.PLAYER_HIT_ANIMATION, this.onPlayerHitAnimationTriggered);
 			m_rightPlayer.addEventListener(AnimationEvent.PLAYER_HIT_ANIMATION, this.onPlayerHitAnimationTriggered);
 			m_leftPlayer.x -= m_leftPlayer.width;
@@ -436,9 +427,9 @@ package states
 				direction = m_rightPlayer.x + 50;
 			}
 			
-			if (direction > (m_backgroundGraphic.width - 32))
+			if (direction > (m_background.width - 32))
 			{
-				direction = (m_backgroundGraphic.width - 32);
+				direction = (m_background.width - 32);
 			}
 			else if (direction < 0)
 			{
@@ -446,7 +437,7 @@ package states
 			}
 			
 			TweenMax.to(loser, 1.5, { onInit:loser.youGotKnockedTheFuckOut, 
-						startAt: { y:m_backgroundGraphic.height - 102 }, ease:Bounce.easeOut, y:m_backgroundGraphic.height - 82, 
+						startAt: { y:m_background.height - 102 }, ease:Bounce.easeOut, y:m_background.height - 82, 
 						onComplete: gotoGameOverState} );
 			TweenMax.to(loser, 1.5, { x:direction });
 		}
@@ -653,7 +644,7 @@ package states
 			var attacker:Player = m_playerReferences[m_whosTurn];
 			var defender:Player = m_playerReferences[m_previousTurn];
 			
-			if (attacker == m_leftPlayer && m_rightPlayer.x < (m_backgroundGraphic.width - 32) )
+			if (attacker == m_leftPlayer && m_rightPlayer.x < (m_background.width - 32) )
 			{
 				TweenMax.to(attacker, 0.3, { x: attacker.x + m_playerMovementInPixels, ease:Linear.easeNone} );
 				TweenMax.to(defender, 0.3, { x: defender.x + m_playerMovementInPixels, ease:Linear.easeNone } );

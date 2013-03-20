@@ -40,6 +40,13 @@ package
 		[Embed(source = "/sprites/kenPortrait2.gif")] public static const RightKen:Class;
 		
 		[Embed(source = "/sprites/pocketfighter-BG1.gif")] public static const Background:Class;
+		[Embed(source = "/sprites/cammy.png")] public static const BGCammy:Class;
+		[Embed(source = "/sprites/deejay.png")] public static const BGDeejay:Class;
+		[Embed(source = "/sprites/ehonda.png")] public static const BGHonda:Class;
+		[Embed(source = "/sprites/guile.png")] public static const BGGuile:Class;
+		[Embed(source = "/sprites/hawk.png")] public static const BGHawk:Class;
+		[Embed(source = "/sprites/ponytails.png")] public static const BGPonyTails:Class;
+		
 		
 		[Embed(source = "/audio/stage end[SFX].mp3")]  public static const StageEnd:Class;
 		

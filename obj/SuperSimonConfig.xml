@@ -16,7 +16,7 @@
     </define>
     <define append="true">
       <name>CONFIG::timeStamp</name>
-      <value>'09/03/2013'</value>
+      <value>'20/03/2013'</value>
     </define>
     <define append="true">
       <name>CONFIG::air</name>
@@ -34,14 +34,14 @@
     <omit-trace-statements>true</omit-trace-statements>
     <verbose-stacktraces>false</verbose-stacktraces>
     <source-path append="true">
-      <path-element>C:\Users\User\Documents\SuperSimon\src</path-element>
+      <path-element>C:\Users\Public\Documents\prototypes\SuperSimon\src</path-element>
       <path-element>C:\AdamAtomic-flixel-8989e50\AdamAtomic-flixel-8989e50</path-element>
       <path-element>C:\greensock-as3\greensock-as3</path-element>
       <path-element>C:\Program Files (x86)\FlashDevelop\Library\AS3\classes</path-element>
     </source-path>
   </compiler>
   <file-specs>
-    <path-element>C:\Users\User\Documents\SuperSimon\src\Main.as</path-element>
+    <path-element>C:\Users\Public\Documents\prototypes\SuperSimon\src\Main.as</path-element>
   </file-specs>
   <default-background-color>#FFFFFF</default-background-color>
   <default-frame-rate>30</default-frame-rate>

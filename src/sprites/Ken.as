@@ -20,10 +20,10 @@ package sprites
 		public function Ken(X:Number = 0, Y:Number = 0, SimpleGraphic:Class = null) 
 		{
 			super(0xD00000, X, Y, SimpleGraphic);
-			var fpsVariation:int = 7;//Math.random() * 2;
+			var fpsVariation:int = fpsMultiplier + 1;
 			
 			loadGraphic(Registry.kenSheetImg, true, false, 117, 75);
-			addAnimation("idle", [0, 1, 2, 3, 4, 5], 5 * fpsMultiplier, true);//row 1
+			addAnimation("idle", [0, 1, 2, 3, 4, 5], 5 * fpsVariation, true);//row 1
 			addAnimation("highPunch", [13, 14, 15, 16, 17, 18, 19], 7 * fpsMultiplier, false);//row2
 			addAnimation("highKick", [26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38], 13 * super.fpsMultiplier, false);
 			addAnimation("lowKick", [39, 40, 41, 42, 43, 44, 45, 46], 8 * fpsMultiplier, false);
