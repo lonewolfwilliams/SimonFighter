@@ -9,9 +9,12 @@ package
 	 * ...
 	 * @author LoneWolfWilliams
 	 */
+	
+	[SWF(width = "640", height = "480")]
+	[Frame(factoryClass="Preloader")] //Tells Flixel to use the default preloader 
+		
 	public class Main extends FlxGame 
 	{
-		[SWF(width="640", height="480")]
 		public function Main():void 
 		{
 			super(320,240, CONFIG::debug ? GameState : TitleState ,2);

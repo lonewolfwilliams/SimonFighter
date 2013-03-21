@@ -36,11 +36,6 @@ package sprites
 			AddHawk();
 			AddPonyTails();
 			
-			var gradiant:FlxSprite = new FlxSprite();
-			FlxGradient.overlayGradientOnFlxSprite(gradiant, m_backgroundGraphic.width, m_backgroundGraphic.height * 0.5, 
-													[0xAA000000, 0xAA000000, 0x00], 0, 
-													m_backgroundGraphic.height - FlxG.camera.height);
-			add(gradiant);
 		}
 		
 		private function AddPonyTails():void 
